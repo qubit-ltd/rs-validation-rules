@@ -745,6 +745,7 @@ const SOURCE: RegistrationSource =
     RegistrationSource::new("qubit-validation-rules", module_path!(), file!(), line!());
 
 pub fn registrations() -> Vec<ValidatorRegistration> {
+    #[allow(unused_mut)]
     let mut rules = [
         ("qubit.rules.text.non_blank", &DESC_NON_BLANK),
         ("qubit.rules.text.char_length", &DESC_CHAR_LENGTH),
