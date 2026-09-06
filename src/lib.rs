@@ -182,6 +182,266 @@ impl Validator<usize, ()> for ItemCount {
     }
 }
 
+/// Errors produced by text format and character rules.
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum TextRuleError {
+    #[error("text is blank")]
+    Blank,
+    #[error("text contains disallowed characters")]
+    DisallowedCharacters,
+    #[error("text does not match the pattern")]
+    Pattern,
+    #[error("text is not a valid email address")]
+    Email,
+    #[error("text is not a valid URI")]
+    Uri,
+    #[error("text is not a valid UUID")]
+    Uuid,
+    #[error("text is not a valid mobile number")]
+    Mobile,
+}
+
+/// ASCII email profile used by the standard rules.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct EmailAscii;
+
+impl Validator<str, ()> for EmailAscii {
+    type Error = TextRuleError;
+    fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        let mut parts = value.split('@');
+        let local = parts.next().ok_or(TextRuleError::Email)?;
+        let domain = parts.next().ok_or(TextRuleError::Email)?;
+        if parts.next().is_some()
+            || value.len() > 254
+            || local.is_empty()
+            || local.len() > 64
+            || !value.is_ascii()
+            || value.chars().any(char::is_whitespace)
+            || local.starts_with('.')
+            || local.ends_with('.')
+            || local.contains("..")
+            || !local
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "!#$%&'*+-/=?^_`{|}~.".contains(c))
+            || !domain.split('.').all(|label| {
+                !label.is_empty()
+                    && label.len() <= 63
+                    && !label.starts_with('-')
+                    && !label.ends_with('-')
+                    && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+            })
+        {
+            return Err(TextRuleError::Email);
+        }
+        Ok(())
+    }
+}
+
+/// Absolute URI profile used by the standard rules.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Uri;
+
+impl Validator<str, ()> for Uri {
+    type Error = TextRuleError;
+    fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        let Some((scheme, rest)) = value.split_once(':') else {
+            return Err(TextRuleError::Uri);
+        };
+        if scheme.is_empty()
+            || !scheme.chars().enumerate().all(|(i, c)| {
+                if i == 0 {
+                    c.is_ascii_alphabetic()
+                } else {
+                    c.is_ascii_alphanumeric() || "+-.".contains(c)
+                }
+            })
+            || rest.is_empty()
+            || value.chars().any(char::is_whitespace)
+        {
+            return Err(TextRuleError::Uri);
+        }
+        Ok(())
+    }
+}
+
+/// Canonical 8-4-4-4-12 UUID text profile.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UuidText;
+
+impl Validator<str, ()> for UuidText {
+    type Error = TextRuleError;
+    fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        if value.len() == 36
+            && value.as_bytes().iter().enumerate().all(|(i, b)| {
+                if [8, 13, 18, 23].contains(&i) {
+                    *b == b'-'
+                } else {
+                    b.is_ascii_hexdigit()
+                }
+            })
+        {
+            Ok(())
+        } else {
+            Err(TextRuleError::Uuid)
+        }
+    }
+}
+
+/// Mainland China mobile number structural profile.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ChinaMobileStructure;
+
+impl Validator<str, ()> for ChinaMobileStructure {
+    type Error = TextRuleError;
+    fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        if value.len() == 11
+            && value.starts_with('1')
+            && value
+                .as_bytes()
+                .get(1)
+                .is_some_and(|b| (b'3'..=b'9').contains(b))
+            && value.chars().all(|c| c.is_ascii_digit())
+        {
+            Ok(())
+        } else {
+            Err(TextRuleError::Mobile)
+        }
+    }
+}
+
+/// A compiled full-string regular expression rule.
+#[cfg(feature = "regex")]
+pub struct RegexMatch(regex::Regex);
+
+#[cfg(feature = "regex")]
+impl RegexMatch {
+    pub fn new(pattern: &str) -> Result<Self, BindError> {
+        regex::Regex::new(&format!(r"\A(?:{pattern})\z"))
+            .map(Self)
+            .map_err(|_| BindError::new(qubit_validator::BindErrorKind::InvalidPattern))
+    }
+}
+
+#[cfg(feature = "regex")]
+impl Validator<str, ()> for RegexMatch {
+    type Error = TextRuleError;
+    fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        self.0
+            .is_match(value)
+            .then_some(())
+            .ok_or(TextRuleError::Pattern)
+    }
+}
+
+#[cfg(feature = "regex")]
+struct RegexPrepared(RegexMatch);
+
+#[cfg(feature = "regex")]
+impl PreparedValidator for RegexPrepared {
+    fn validate(
+        &self,
+        value: ValidationValue<'_>,
+        _context: &BoundValidationContext<'_>,
+    ) -> Result<RuleOutcome, ExecutionError> {
+        let Some(value) = value.as_text() else {
+            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
+        };
+        if self.0.validate(value, &()).is_ok() {
+            Ok(RuleOutcome::Valid)
+        } else {
+            Ok(RuleOutcome::Invalid(vec![Violation::new(
+                ValidatorId::new("qubit.rules.text.regex"),
+                ViolationCode::new("text.pattern"),
+            )]))
+        }
+    }
+}
+
+#[cfg(feature = "regex")]
+fn prepare_regex(
+    args: &[NamedValidationArgument<'_>],
+) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    let mut reader = ArgumentReader::new(args)?;
+    let pattern = reader.required_str("pattern")?;
+    reader.finish()?;
+    Ok(Arc::new(RegexPrepared(RegexMatch::new(pattern)?)))
+}
+
+/// A comparable inclusive/exclusive range rule.
+#[derive(Clone, Debug)]
+pub struct Range<T> {
+    lower: std::ops::Bound<T>,
+    upper: std::ops::Bound<T>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum RangeError {
+    #[error("value is outside the range")]
+    OutOfRange,
+    #[error("value cannot be ordered")]
+    Unordered,
+}
+
+impl<T: PartialOrd> Range<T> {
+    pub fn new(lower: std::ops::Bound<T>, upper: std::ops::Bound<T>) -> Result<Self, BindError> {
+        use std::ops::Bound::{Excluded, Included, Unbounded};
+        let invalid = match (&lower, &upper) {
+            (Unbounded, _) | (_, Unbounded) => false,
+            (Included(a), Included(b))
+            | (Included(a), Excluded(b))
+            | (Excluded(a), Included(b))
+            | (Excluded(a), Excluded(b)) => match a.partial_cmp(b) {
+                Some(std::cmp::Ordering::Greater) => true,
+                Some(std::cmp::Ordering::Equal) => {
+                    matches!((&lower, &upper), (Excluded(_), _) | (_, Excluded(_)))
+                }
+                None => true,
+                _ => false,
+            },
+        };
+        if invalid {
+            return Err(BindError::new(
+                qubit_validator::BindErrorKind::InvalidBounds,
+            ));
+        }
+        Ok(Self { lower, upper })
+    }
+}
+
+impl<T: PartialOrd> Validator<T, ()> for Range<T> {
+    type Error = RangeError;
+    fn validate(&self, value: &T, _: &()) -> Result<(), Self::Error> {
+        use std::ops::Bound::{Excluded, Included, Unbounded};
+        let lower_ok = match &self.lower {
+            Unbounded => true,
+            Included(bound) => value
+                .partial_cmp(bound)
+                .ok_or(RangeError::Unordered)?
+                .is_ge(),
+            Excluded(bound) => value
+                .partial_cmp(bound)
+                .ok_or(RangeError::Unordered)?
+                .is_gt(),
+        };
+        let upper_ok = match &self.upper {
+            Unbounded => true,
+            Included(bound) => value
+                .partial_cmp(bound)
+                .ok_or(RangeError::Unordered)?
+                .is_le(),
+            Excluded(bound) => value
+                .partial_cmp(bound)
+                .ok_or(RangeError::Unordered)?
+                .is_lt(),
+        };
+        if lower_ok && upper_ok {
+            Ok(())
+        } else {
+            Err(RangeError::OutOfRange)
+        }
+    }
+}
+
 #[cfg(feature = "china-identity")]
 mod china_identity;
 #[cfg(feature = "china-identity")]
@@ -219,38 +479,38 @@ impl PreparedValidator for TextPrepared {
         let result = match self.0 {
             TextRule::NonBlank => NonBlank
                 .validate(value, &())
-                .map_err(|error| ("blank", error.to_string(), None)),
+                .map_err(|error| ("text.blank", error.to_string(), None)),
             TextRule::CharLength(rule) => rule.validate(value, &()).map_err(|error| match error {
                 TextLengthError::TooShort { min } => (
-                    "too_short",
+                    "text.too_short",
                     error.to_string(),
                     Some(ViolationParam::Unsigned(min.into())),
                 ),
                 TextLengthError::TooLong { max } => (
-                    "too_long",
+                    "text.too_long",
                     error.to_string(),
                     Some(ViolationParam::Unsigned(max.into())),
                 ),
             }),
             TextRule::ByteLength(rule) => rule.validate(value, &()).map_err(|error| match error {
                 ByteLengthError::TooFewBytes { min } => (
-                    "too_few_bytes",
+                    "text.too_few_bytes",
                     error.to_string(),
                     Some(ViolationParam::Unsigned(min.into())),
                 ),
                 ByteLengthError::TooManyBytes { max } => (
-                    "too_many_bytes",
+                    "text.too_many_bytes",
                     error.to_string(),
                     Some(ViolationParam::Unsigned(max.into())),
                 ),
             }),
             TextRule::AllowedChars(rule) => rule
                 .validate(value, &())
-                .map_err(|error| ("invalid_chars", error.to_string(), None)),
+                .map_err(|error| ("text.disallowed_characters", error.to_string(), None)),
             TextRule::Format(format) => {
                 format_valid(format, value).then_some(()).ok_or_else(|| {
                     (
-                        "invalid_format",
+                        format_code(format),
                         "value does not match the requested format".to_owned(),
                         None,
                     )
@@ -287,8 +547,8 @@ impl PreparedValidator for CountPrepared {
             Ok(()) => Ok(RuleOutcome::Valid),
             Err(error) => {
                 let (code, bound) = match error {
-                    ItemCountError::TooSmall { min } => ("too_few_items", min),
-                    ItemCountError::TooLarge { max } => ("too_many_items", max),
+                    ItemCountError::TooSmall { min } => ("collection.too_small", min),
+                    ItemCountError::TooLarge { max } => ("collection.too_large", max),
                 };
                 Ok(RuleOutcome::Invalid(vec![
                     Violation::new(
@@ -312,6 +572,15 @@ fn text_rule_id(rule: TextRule) -> &'static str {
         TextRule::Format(TextFormat::Mobile) => "qubit.rules.text.china_mobile_structure",
         TextRule::Format(TextFormat::Uri) => "qubit.rules.text.uri",
         TextRule::Format(TextFormat::Uuid) => "qubit.rules.text.uuid",
+    }
+}
+
+fn format_code(format: TextFormat) -> &'static str {
+    match format {
+        TextFormat::Email => "text.email",
+        TextFormat::Mobile => "text.mobile",
+        TextFormat::Uri => "text.uri",
+        TextFormat::Uuid => "text.uuid",
     }
 }
 
@@ -456,6 +725,9 @@ const UUID_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uuid);
 const COUNT_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::of::<usize>(), EMPTY_DEPS, prepare_item_count);
+#[cfg(feature = "regex")]
+const REGEX_SIG: ValidatorSignature =
+    ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_regex);
 
 static DESC_NON_BLANK: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_NON_BLANK]);
 static DESC_CHAR_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_BOUNDS]);
@@ -466,12 +738,14 @@ static DESC_MOBILE: ValidatorDescriptor = ValidatorDescriptor::new(&[MOBILE_SIG]
 static DESC_URI: ValidatorDescriptor = ValidatorDescriptor::new(&[URI_SIG]);
 static DESC_UUID: ValidatorDescriptor = ValidatorDescriptor::new(&[UUID_SIG]);
 static DESC_COUNT: ValidatorDescriptor = ValidatorDescriptor::new(&[COUNT_SIG]);
+#[cfg(feature = "regex")]
+static DESC_REGEX: ValidatorDescriptor = ValidatorDescriptor::new(&[REGEX_SIG]);
 
 const SOURCE: RegistrationSource =
     RegistrationSource::new("qubit-validation-rules", module_path!(), file!(), line!());
 
 pub fn registrations() -> Vec<ValidatorRegistration> {
-    [
+    let mut rules = [
         ("qubit.rules.text.non_blank", &DESC_NON_BLANK),
         ("qubit.rules.text.char_length", &DESC_CHAR_LENGTH),
         ("qubit.rules.text.byte_length", &DESC_BYTE_LENGTH),
@@ -488,7 +762,14 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
         &DESC_COUNT,
         SOURCE,
     )))
-    .collect()
+    .collect::<Vec<_>>();
+    #[cfg(feature = "regex")]
+    rules.push(ValidatorRegistration::new(
+        ValidatorId::new("qubit.rules.text.regex"),
+        &DESC_REGEX,
+        SOURCE,
+    ));
+    rules
 }
 
 #[cfg(test)]
@@ -514,7 +795,7 @@ mod tests {
             )
             .expect("length rule executes");
         assert!(
-            matches!(outcome, RuleOutcome::Invalid(violations) if violations[0].code().as_str() == "too_short")
+            matches!(outcome, RuleOutcome::Invalid(violations) if violations[0].code().as_str() == "text.too_short")
         );
     }
 

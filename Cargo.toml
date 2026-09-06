@@ -11,6 +11,7 @@ default = []
 registry = ["qubit-validator/registry"]
 inventory = ["registry", "qubit-validator/inventory"]
 formats = []
+regex = ["dep:regex"]
 chrono = ["dep:chrono"]
 decimal = ["dep:bigdecimal"]
 china-identity = []
@@ -20,3 +21,4 @@ qubit-validator = { path = "../rs-validator", version = "=0.1.0", default-featur
 thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
 bigdecimal = { version = "0.4", optional = true }
+regex = { version = "1", optional = true }
