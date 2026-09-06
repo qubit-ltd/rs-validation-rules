@@ -741,6 +741,48 @@ static DESC_COUNT: ValidatorDescriptor = ValidatorDescriptor::new(&[COUNT_SIG]);
 #[cfg(feature = "regex")]
 static DESC_REGEX: ValidatorDescriptor = ValidatorDescriptor::new(&[REGEX_SIG]);
 
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.non_blank",
+    descriptor = &DESC_NON_BLANK
+);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.char_length",
+    descriptor = &DESC_CHAR_LENGTH
+);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.byte_length",
+    descriptor = &DESC_BYTE_LENGTH
+);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.allowed_chars",
+    descriptor = &DESC_ALLOWED
+);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.email_ascii",
+    descriptor = &DESC_EMAIL
+);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.china_mobile_structure",
+    descriptor = &DESC_MOBILE
+);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(id = "qubit.rules.text.uri", descriptor = &DESC_URI);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(id = "qubit.rules.text.uuid", descriptor = &DESC_UUID);
+#[cfg(feature = "inventory")]
+qubit_validator::register_validator!(
+    id = "qubit.rules.collection.item_count",
+    descriptor = &DESC_COUNT
+);
+#[cfg(all(feature = "inventory", feature = "regex"))]
+qubit_validator::register_validator!(id = "qubit.rules.text.regex", descriptor = &DESC_REGEX);
+
 const SOURCE: RegistrationSource =
     RegistrationSource::new("qubit-validation-rules", module_path!(), file!(), line!());
 
@@ -798,6 +840,13 @@ mod tests {
         assert!(
             matches!(outcome, RuleOutcome::Invalid(violations) if violations[0].code().as_str() == "text.too_short")
         );
+    }
+
+    #[cfg(feature = "inventory")]
+    #[test]
+    fn inventory_registry_contains_standard_rules() {
+        let registry = ValidatorRegistry::global();
+        assert!(registry.get("qubit.rules.text.non_blank").is_some());
     }
 
     #[cfg(feature = "china-identity")]
