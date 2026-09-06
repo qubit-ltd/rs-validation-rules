@@ -490,3 +490,40 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
     )))
     .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use qubit_validator::ValidationArgument;
+    use qubit_validator::ValidatorRegistry;
+
+    #[test]
+    fn standard_rules_bind_and_report_structured_violations() {
+        let registry = ValidatorRegistry::from_registrations(registrations()).expect("valid rules");
+        let arguments = [NamedValidationArgument::new(
+            "min",
+            ValidationArgument::Unsigned(3),
+        )];
+        let bound = registry
+            .bind("qubit.rules.text.char_length", InputType::Text, &arguments)
+            .expect("length rule binds");
+        let outcome = bound
+            .validate(
+                ValidationValue::Text("hi"),
+                &BoundValidationContext::new(&[]),
+            )
+            .expect("length rule executes");
+        assert!(
+            matches!(outcome, RuleOutcome::Invalid(violations) if violations[0].code().as_str() == "too_short")
+        );
+    }
+
+    #[cfg(feature = "china-identity")]
+    #[test]
+    fn china_identity_parser_rejects_invalid_checksum() {
+        assert_eq!(
+            ChinaIdentity18::parse("110105194912310020"),
+            Err(ChinaIdentityError::InvalidChecksum)
+        );
+    }
+}
