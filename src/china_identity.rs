@@ -29,11 +29,11 @@ impl ChinaIdentity18 {
         if b.len() != 18 {
             return Err(ChinaIdentityError::InvalidLength);
         };
-        for i in 0..17 {
-            if !b[i].is_ascii() {
+        for (i, digit) in b.iter().enumerate().take(17) {
+            if !digit.is_ascii() {
                 return Err(ChinaIdentityError::NonAsciiBodyDigit { position: i as u8 });
             }
-            if !b[i].is_ascii_digit() {
+            if !digit.is_ascii_digit() {
                 return Err(ChinaIdentityError::InvalidBodyDigit { position: i as u8 });
             }
         }
@@ -44,7 +44,7 @@ impl ChinaIdentity18 {
         let sum = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
             .iter()
             .zip(&b[..17])
-            .map(|(w, c)| u32::from(*w) * u32::from(c - b'0'))
+            .map(|(w, c)| (*w as u32) * u32::from(*c - b'0'))
             .sum::<u32>();
         let expected = b"10X98765432"[(sum % 11) as usize];
         let actual = b[17].to_ascii_uppercase();
