@@ -1,10 +1,24 @@
-use qubit_validator::{
-    ArgumentReader, BindError, BoundValidationContext, ExecutionError, ExecutionErrorKind,
-    InputType, NamedValidationArgument, PreparedValidator, RegistrationSource, RuleOutcome,
-    ValidationValue, Validator, ValidatorDescriptor, ValidatorId, ValidatorRegistration,
-    ValidatorSignature, Violation, ViolationCode, ViolationParam,
-};
 use std::sync::Arc;
+
+use qubit_validator::ArgumentReader;
+use qubit_validator::BindError;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::ExecutionError;
+use qubit_validator::ExecutionErrorKind;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::PreparedValidator;
+use qubit_validator::RegistrationSource;
+use qubit_validator::RuleOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
+use qubit_validator::ValidatorDescriptor;
+use qubit_validator::ValidatorId;
+use qubit_validator::ValidatorRegistration;
+use qubit_validator::ValidatorSignature;
+use qubit_validator::Violation;
+use qubit_validator::ViolationCode;
+use qubit_validator::ViolationParam;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum NonBlankError {
@@ -132,8 +146,12 @@ impl Validator<str, ()> for AllowedChars {
             CharacterSet::Unicode => true,
             CharacterSet::PrintableUnicode => !c.is_control(),
             CharacterSet::Ascii => c.is_ascii(),
-            CharacterSet::PrintableAscii => c.is_ascii() && !c.is_ascii_control(),
-            CharacterSet::Code => c.is_ascii_alphanumeric() || "._-".contains(c),
+            CharacterSet::PrintableAscii => {
+                c.is_ascii() && !c.is_ascii_control()
+            }
+            CharacterSet::Code => {
+                c.is_ascii_alphanumeric() || "._-".contains(c)
+            }
         });
         if ok {
             Ok(())
@@ -156,7 +174,10 @@ pub struct ItemCount {
     max: Option<usize>,
 }
 impl ItemCount {
-    pub fn new(min: Option<usize>, max: Option<usize>) -> Result<Self, BindError> {
+    pub fn new(
+        min: Option<usize>,
+        max: Option<usize>,
+    ) -> Result<Self, BindError> {
         if min.zip(max).is_some_and(|(a, b)| a > b) {
             return Err(BindError::new(
                 qubit_validator::BindErrorKind::ParameterOutOfRange,
@@ -220,15 +241,17 @@ impl Validator<str, ()> for EmailAscii {
             || local.starts_with('.')
             || local.ends_with('.')
             || local.contains("..")
-            || !local
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || "!#$%&'*+-/=?^_`{|}~.".contains(c))
+            || !local.chars().all(|c| {
+                c.is_ascii_alphanumeric() || "!#$%&'*+-/=?^_`{|}~.".contains(c)
+            })
             || !domain.split('.').all(|label| {
                 !label.is_empty()
                     && label.len() <= 63
                     && !label.starts_with('-')
                     && !label.ends_with('-')
-                    && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+                    && label
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '-')
             })
         {
             return Err(TextRuleError::Email);
@@ -318,7 +341,9 @@ impl RegexMatch {
     pub fn new(pattern: &str) -> Result<Self, BindError> {
         regex::Regex::new(&format!(r"\A(?:{pattern})\z"))
             .map(Self)
-            .map_err(|_| BindError::new(qubit_validator::BindErrorKind::InvalidPattern))
+            .map_err(|_| {
+                BindError::new(qubit_validator::BindErrorKind::InvalidPattern)
+            })
     }
 }
 
@@ -344,7 +369,9 @@ impl PreparedValidator for RegexPrepared {
         _context: &BoundValidationContext<'_>,
     ) -> Result<RuleOutcome, ExecutionError> {
         let Some(value) = value.as_text() else {
-            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
+            return Err(ExecutionError::new(
+                ExecutionErrorKind::InputTypeMismatch,
+            ));
         };
         if self.0.validate(value, &()).is_ok() {
             Ok(RuleOutcome::Valid)
@@ -383,8 +410,13 @@ pub enum RangeError {
 }
 
 impl<T: PartialOrd> Range<T> {
-    pub fn new(lower: std::ops::Bound<T>, upper: std::ops::Bound<T>) -> Result<Self, BindError> {
-        use std::ops::Bound::{Excluded, Included, Unbounded};
+    pub fn new(
+        lower: std::ops::Bound<T>,
+        upper: std::ops::Bound<T>,
+    ) -> Result<Self, BindError> {
+        use std::ops::Bound::Excluded;
+        use std::ops::Bound::Included;
+        use std::ops::Bound::Unbounded;
         let invalid = match (&lower, &upper) {
             (Unbounded, _) | (_, Unbounded) => false,
             (Included(a), Included(b))
@@ -393,7 +425,10 @@ impl<T: PartialOrd> Range<T> {
             | (Excluded(a), Excluded(b)) => match a.partial_cmp(b) {
                 Some(std::cmp::Ordering::Greater) => true,
                 Some(std::cmp::Ordering::Equal) => {
-                    matches!((&lower, &upper), (Excluded(_), _) | (_, Excluded(_)))
+                    matches!(
+                        (&lower, &upper),
+                        (Excluded(_), _) | (_, Excluded(_))
+                    )
                 }
                 None => true,
                 _ => false,
@@ -411,7 +446,9 @@ impl<T: PartialOrd> Range<T> {
 impl<T: PartialOrd> Validator<T, ()> for Range<T> {
     type Error = RangeError;
     fn validate(&self, value: &T, _: &()) -> Result<(), Self::Error> {
-        use std::ops::Bound::{Excluded, Included, Unbounded};
+        use std::ops::Bound::Excluded;
+        use std::ops::Bound::Included;
+        use std::ops::Bound::Unbounded;
         let lower_ok = match &self.lower {
             Unbounded => true,
             Included(bound) => value
@@ -445,7 +482,11 @@ impl<T: PartialOrd> Validator<T, ()> for Range<T> {
 #[cfg(feature = "china-identity")]
 mod china_identity;
 #[cfg(feature = "china-identity")]
-pub use china_identity::{ChinaIdentity18, ChinaIdentityError, ChinaIdentityFacts};
+pub use china_identity::ChinaIdentity18;
+#[cfg(feature = "china-identity")]
+pub use china_identity::ChinaIdentityError;
+#[cfg(feature = "china-identity")]
+pub use china_identity::ChinaIdentityFacts;
 
 #[derive(Clone, Copy)]
 enum TextRule {
@@ -474,39 +515,47 @@ impl PreparedValidator for TextPrepared {
         _context: &BoundValidationContext<'_>,
     ) -> Result<RuleOutcome, ExecutionError> {
         let Some(value) = value.as_text() else {
-            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
+            return Err(ExecutionError::new(
+                ExecutionErrorKind::InputTypeMismatch,
+            ));
         };
         let result = match self.0 {
             TextRule::NonBlank => NonBlank
                 .validate(value, &())
                 .map_err(|error| ("text.blank", error.to_string(), None)),
-            TextRule::CharLength(rule) => rule.validate(value, &()).map_err(|error| match error {
-                TextLengthError::TooShort { min } => (
-                    "text.too_short",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(min.into())),
-                ),
-                TextLengthError::TooLong { max } => (
-                    "text.too_long",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(max.into())),
-                ),
-            }),
-            TextRule::ByteLength(rule) => rule.validate(value, &()).map_err(|error| match error {
-                ByteLengthError::TooFewBytes { min } => (
-                    "text.too_few_bytes",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(min.into())),
-                ),
-                ByteLengthError::TooManyBytes { max } => (
-                    "text.too_many_bytes",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(max.into())),
-                ),
-            }),
-            TextRule::AllowedChars(rule) => rule
-                .validate(value, &())
-                .map_err(|error| ("text.disallowed_characters", error.to_string(), None)),
+            TextRule::CharLength(rule) => {
+                rule.validate(value, &()).map_err(|error| match error {
+                    TextLengthError::TooShort { min } => (
+                        "text.too_short",
+                        error.to_string(),
+                        Some(ViolationParam::Unsigned(min.into())),
+                    ),
+                    TextLengthError::TooLong { max } => (
+                        "text.too_long",
+                        error.to_string(),
+                        Some(ViolationParam::Unsigned(max.into())),
+                    ),
+                })
+            }
+            TextRule::ByteLength(rule) => {
+                rule.validate(value, &()).map_err(|error| match error {
+                    ByteLengthError::TooFewBytes { min } => (
+                        "text.too_few_bytes",
+                        error.to_string(),
+                        Some(ViolationParam::Unsigned(min.into())),
+                    ),
+                    ByteLengthError::TooManyBytes { max } => (
+                        "text.too_many_bytes",
+                        error.to_string(),
+                        Some(ViolationParam::Unsigned(max.into())),
+                    ),
+                })
+            }
+            TextRule::AllowedChars(rule) => {
+                rule.validate(value, &()).map_err(|error| {
+                    ("text.disallowed_characters", error.to_string(), None)
+                })
+            }
             TextRule::Format(format) => {
                 format_valid(format, value).then_some(()).ok_or_else(|| {
                     (
@@ -521,7 +570,8 @@ impl PreparedValidator for TextPrepared {
             Ok(()) => Ok(RuleOutcome::Valid),
             Err((code, _message, param)) => {
                 let rule_id = ValidatorId::new(text_rule_id(self.0));
-                let mut violation = Violation::new(rule_id, ViolationCode::new(code));
+                let mut violation =
+                    Violation::new(rule_id, ViolationCode::new(code));
                 if let Some(param) = param {
                     violation = violation.with_param("bound", param);
                 }
@@ -541,21 +591,30 @@ impl PreparedValidator for CountPrepared {
         _context: &BoundValidationContext<'_>,
     ) -> Result<RuleOutcome, ExecutionError> {
         let Some(value) = value.typed::<usize>() else {
-            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
+            return Err(ExecutionError::new(
+                ExecutionErrorKind::InputTypeMismatch,
+            ));
         };
         match self.0.validate(value, &()) {
             Ok(()) => Ok(RuleOutcome::Valid),
             Err(error) => {
                 let (code, bound) = match error {
-                    ItemCountError::TooSmall { min } => ("collection.too_small", min),
-                    ItemCountError::TooLarge { max } => ("collection.too_large", max),
+                    ItemCountError::TooSmall { min } => {
+                        ("collection.too_small", min)
+                    }
+                    ItemCountError::TooLarge { max } => {
+                        ("collection.too_large", max)
+                    }
                 };
                 Ok(RuleOutcome::Invalid(vec![
                     Violation::new(
                         ValidatorId::new("qubit.rules.collection.item_count"),
                         ViolationCode::new(code),
                     )
-                    .with_param("bound", ViolationParam::Unsigned(bound as u128)),
+                    .with_param(
+                        "bound",
+                        ViolationParam::Unsigned(bound as u128),
+                    ),
                 ]))
             }
         }
@@ -569,7 +628,9 @@ fn text_rule_id(rule: TextRule) -> &'static str {
         TextRule::ByteLength(_) => "qubit.rules.text.byte_length",
         TextRule::AllowedChars(_) => "qubit.rules.text.allowed_chars",
         TextRule::Format(TextFormat::Email) => "qubit.rules.text.email_ascii",
-        TextRule::Format(TextFormat::Mobile) => "qubit.rules.text.china_mobile_structure",
+        TextRule::Format(TextFormat::Mobile) => {
+            "qubit.rules.text.china_mobile_structure"
+        }
         TextRule::Format(TextFormat::Uri) => "qubit.rules.text.uri",
         TextRule::Format(TextFormat::Uuid) => "qubit.rules.text.uuid",
     }
@@ -600,7 +661,9 @@ fn format_valid(format: TextFormat, value: &str) -> bool {
                 && value.starts_with('1')
                 && value.chars().all(|character| character.is_ascii_digit())
         }
-        TextFormat::Uri => value.contains(':') && !value.chars().any(char::is_whitespace),
+        TextFormat::Uri => {
+            value.contains(':') && !value.chars().any(char::is_whitespace)
+        }
         TextFormat::Uuid => {
             value.len() == 36
                 && value.as_bytes().iter().enumerate().all(|(index, byte)| {
@@ -629,7 +692,10 @@ fn prepare_char_length(
     args: &[NamedValidationArgument<'_>],
 ) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
-    let rule = CharLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
+    let rule = CharLength::new(
+        reader.optional_u32("min")?,
+        reader.optional_u32("max")?,
+    )?;
     reader.finish()?;
     Ok(Arc::new(TextPrepared(TextRule::CharLength(rule))))
 }
@@ -638,7 +704,10 @@ fn prepare_byte_length(
     args: &[NamedValidationArgument<'_>],
 ) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
-    let rule = ByteLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
+    let rule = ByteLength::new(
+        reader.optional_u32("min")?,
+        reader.optional_u32("max")?,
+    )?;
     reader.finish()?;
     Ok(Arc::new(TextPrepared(TextRule::ByteLength(rule))))
 }
@@ -654,10 +723,10 @@ fn prepare_allowed_chars(
         "printable_ascii" => CharacterSet::PrintableAscii,
         "code" => CharacterSet::Code,
         _ => {
-            return Err(
-                BindError::new(qubit_validator::BindErrorKind::ParameterOutOfRange)
-                    .with_parameter("set"),
-            );
+            return Err(BindError::new(
+                qubit_validator::BindErrorKind::ParameterOutOfRange,
+            )
+            .with_parameter("set"));
         }
     };
     reader.finish()?;
@@ -723,18 +792,26 @@ const URI_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uri);
 const UUID_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uuid);
-const COUNT_SIG: ValidatorSignature =
-    ValidatorSignature::new(InputType::of::<usize>(), EMPTY_DEPS, prepare_item_count);
+const COUNT_SIG: ValidatorSignature = ValidatorSignature::new(
+    InputType::of::<usize>(),
+    EMPTY_DEPS,
+    prepare_item_count,
+);
 #[cfg(feature = "regex")]
 const REGEX_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_regex);
 
-static DESC_NON_BLANK: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_NON_BLANK]);
-static DESC_CHAR_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_BOUNDS]);
-static DESC_BYTE_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[BYTE_SIG_BOUNDS]);
-static DESC_ALLOWED: ValidatorDescriptor = ValidatorDescriptor::new(&[ALLOWED_SIG]);
+static DESC_NON_BLANK: ValidatorDescriptor =
+    ValidatorDescriptor::new(&[TEXT_SIG_NON_BLANK]);
+static DESC_CHAR_LENGTH: ValidatorDescriptor =
+    ValidatorDescriptor::new(&[TEXT_SIG_BOUNDS]);
+static DESC_BYTE_LENGTH: ValidatorDescriptor =
+    ValidatorDescriptor::new(&[BYTE_SIG_BOUNDS]);
+static DESC_ALLOWED: ValidatorDescriptor =
+    ValidatorDescriptor::new(&[ALLOWED_SIG]);
 static DESC_EMAIL: ValidatorDescriptor = ValidatorDescriptor::new(&[EMAIL_SIG]);
-static DESC_MOBILE: ValidatorDescriptor = ValidatorDescriptor::new(&[MOBILE_SIG]);
+static DESC_MOBILE: ValidatorDescriptor =
+    ValidatorDescriptor::new(&[MOBILE_SIG]);
 static DESC_URI: ValidatorDescriptor = ValidatorDescriptor::new(&[URI_SIG]);
 static DESC_UUID: ValidatorDescriptor = ValidatorDescriptor::new(&[UUID_SIG]);
 static DESC_COUNT: ValidatorDescriptor = ValidatorDescriptor::new(&[COUNT_SIG]);
@@ -772,19 +849,32 @@ qubit_validator::register_validator!(
     descriptor = &DESC_MOBILE
 );
 #[cfg(feature = "inventory")]
-qubit_validator::register_validator!(id = "qubit.rules.text.uri", descriptor = &DESC_URI);
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.uri",
+    descriptor = &DESC_URI
+);
 #[cfg(feature = "inventory")]
-qubit_validator::register_validator!(id = "qubit.rules.text.uuid", descriptor = &DESC_UUID);
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.uuid",
+    descriptor = &DESC_UUID
+);
 #[cfg(feature = "inventory")]
 qubit_validator::register_validator!(
     id = "qubit.rules.collection.item_count",
     descriptor = &DESC_COUNT
 );
 #[cfg(all(feature = "inventory", feature = "regex"))]
-qubit_validator::register_validator!(id = "qubit.rules.text.regex", descriptor = &DESC_REGEX);
+qubit_validator::register_validator!(
+    id = "qubit.rules.text.regex",
+    descriptor = &DESC_REGEX
+);
 
-const SOURCE: RegistrationSource =
-    RegistrationSource::new("qubit-validation-rules", module_path!(), file!(), line!());
+const SOURCE: RegistrationSource = RegistrationSource::new(
+    "qubit-validation-rules",
+    module_path!(),
+    file!(),
+    line!(),
+);
 
 pub fn registrations() -> Vec<ValidatorRegistration> {
     #[allow(unused_mut)]
@@ -799,7 +889,9 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
         ("qubit.rules.text.uuid", &DESC_UUID),
     ]
     .into_iter()
-    .map(|(id, descriptor)| ValidatorRegistration::new(ValidatorId::new(id), descriptor, SOURCE))
+    .map(|(id, descriptor)| {
+        ValidatorRegistration::new(ValidatorId::new(id), descriptor, SOURCE)
+    })
     .chain(std::iter::once(ValidatorRegistration::new(
         ValidatorId::new("qubit.rules.collection.item_count"),
         &DESC_COUNT,
@@ -817,13 +909,15 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use qubit_validator::ValidationArgument;
     use qubit_validator::ValidatorRegistry;
 
+    use super::*;
+
     #[test]
     fn standard_rules_bind_and_report_structured_violations() {
-        let registry = ValidatorRegistry::from_registrations(registrations()).expect("valid rules");
+        let registry = ValidatorRegistry::from_registrations(registrations())
+            .expect("valid rules");
         let arguments = [NamedValidationArgument::new(
             "min",
             ValidationArgument::Unsigned(3),

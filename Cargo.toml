@@ -8,8 +8,7 @@ publish = false
 
 [features]
 default = []
-registry = ["qubit-validator/registry"]
-inventory = ["registry", "qubit-validator/inventory"]
+inventory = ["qubit-validator/inventory"]
 formats = []
 regex = ["dep:regex"]
 chrono = ["dep:chrono"]
