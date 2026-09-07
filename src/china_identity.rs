@@ -24,17 +24,23 @@ impl ChinaIdentityFacts {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ChinaIdentity18;
 impl ChinaIdentity18 {
-    pub fn parse(value: &str) -> Result<ChinaIdentityFacts, ChinaIdentityError> {
+    pub fn parse(
+        value: &str,
+    ) -> Result<ChinaIdentityFacts, ChinaIdentityError> {
         let b = value.as_bytes();
         if b.len() != 18 {
             return Err(ChinaIdentityError::InvalidLength);
         };
         for (i, digit) in b.iter().enumerate().take(17) {
             if !digit.is_ascii() {
-                return Err(ChinaIdentityError::NonAsciiBodyDigit { position: i as u8 });
+                return Err(ChinaIdentityError::NonAsciiBodyDigit {
+                    position: i as u8,
+                });
             }
             if !digit.is_ascii_digit() {
-                return Err(ChinaIdentityError::InvalidBodyDigit { position: i as u8 });
+                return Err(ChinaIdentityError::InvalidBodyDigit {
+                    position: i as u8,
+                });
             }
         }
         let date = std::str::from_utf8(&b[6..14])
