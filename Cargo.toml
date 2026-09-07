@@ -4,20 +4,20 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 license = "Apache-2.0"
-publish = false
+description = "Typed validation rules and validator-registry adapters for Qubit projects."
+repository = "https://github.com/qubit-ltd/rs-validation-rules"
+homepage = "https://github.com/qubit-ltd/rs-validation-rules"
+documentation = "https://docs.rs/qubit-validation-rules"
+readme = "README.md"
 
 [features]
 default = []
 inventory = ["qubit-validator/inventory"]
-formats = []
 regex = ["dep:regex"]
-chrono = ["dep:chrono"]
-decimal = ["dep:bigdecimal"]
-china-identity = []
+china-identity = ["dep:chrono"]
 
 [dependencies]
 qubit-validator = { path = "../rs-validator", version = "=0.1.0", default-features = false }
 thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
-bigdecimal = { version = "0.4", optional = true }
 regex = { version = "1", optional = true }

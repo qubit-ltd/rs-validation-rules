@@ -1,4 +1,6 @@
+// qubit-style: allow multiple-public-types
 use chrono::NaiveDate;
+use qubit_validator::Validator;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ChinaIdentityError {
     #[error("invalid length")]
@@ -11,6 +13,8 @@ pub enum ChinaIdentityError {
     InvalidBirthDate,
     #[error("invalid checksum")]
     InvalidChecksum,
+    #[error("invalid checksum character")]
+    InvalidChecksumCharacter,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ChinaIdentityFacts {
@@ -24,24 +28,24 @@ impl ChinaIdentityFacts {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ChinaIdentity18;
 impl ChinaIdentity18 {
-    pub fn parse(
-        value: &str,
-    ) -> Result<ChinaIdentityFacts, ChinaIdentityError> {
+    pub fn inspect(value: &str) -> Result<ChinaIdentityFacts, ChinaIdentityError> {
+        Self::parse(value)
+    }
+    pub fn parse(value: &str) -> Result<ChinaIdentityFacts, ChinaIdentityError> {
         let b = value.as_bytes();
         if b.len() != 18 {
             return Err(ChinaIdentityError::InvalidLength);
         };
         for (i, digit) in b.iter().enumerate().take(17) {
             if !digit.is_ascii() {
-                return Err(ChinaIdentityError::NonAsciiBodyDigit {
-                    position: i as u8,
-                });
+                return Err(ChinaIdentityError::NonAsciiBodyDigit { position: i as u8 });
             }
             if !digit.is_ascii_digit() {
-                return Err(ChinaIdentityError::InvalidBodyDigit {
-                    position: i as u8,
-                });
+                return Err(ChinaIdentityError::InvalidBodyDigit { position: i as u8 });
             }
+        }
+        if !(b[17].is_ascii_digit() || matches!(b[17], b'X' | b'x')) {
+            return Err(ChinaIdentityError::InvalidChecksumCharacter);
         }
         let date = std::str::from_utf8(&b[6..14])
             .ok()
@@ -58,5 +62,13 @@ impl ChinaIdentity18 {
             return Err(ChinaIdentityError::InvalidChecksum);
         }
         Ok(ChinaIdentityFacts { birth_date: date })
+    }
+}
+
+impl Validator<str, ()> for ChinaIdentity18 {
+    type Error = ChinaIdentityError;
+
+    fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        Self::inspect(value).map(|_| ())
     }
 }

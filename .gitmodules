@@ -1,0 +1,3 @@
+[submodule ".rs-ci"]
+	path = .rs-ci
+	url = file:///home/starfish/working/qubit/rust-common/rs-ci
