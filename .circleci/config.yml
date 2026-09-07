@@ -1,0 +1,14 @@
+version: 2.1
+
+workflows:
+  build:
+    jobs:
+      - rust-ci
+
+jobs:
+  rust-ci:
+    docker:
+      - image: cimg/rust:1.94
+    steps:
+      - checkout
+      - run: ./ci-check.sh
