@@ -17,7 +17,7 @@ regex = ["dep:regex"]
 china-identity = ["dep:chrono"]
 
 [dependencies]
-qubit-validator = { path = "../rs-validator", version = "=0.1.0", default-features = false }
+qubit-validator = { path = "../rs-validator", default-features = false }
 thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["std"], optional = true }
 regex = { version = "1", optional = true }
