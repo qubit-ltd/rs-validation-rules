@@ -83,3 +83,6 @@ external/
 
 # Nested fixture build output
 **/target/
+
+# Locally installed pinned rs-infra tools
+.infra/tools/bin/

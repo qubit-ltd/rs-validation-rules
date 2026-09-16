@@ -1,4 +1,3 @@
-// qubit-style: allow multiple-public-types
 use chrono::NaiveDate;
 use qubit_validator::Validator;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]

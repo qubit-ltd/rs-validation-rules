@@ -1,2 +1,0 @@
-multiple-public-types | src/internal/legacy.rs | Legacy implementation is temporarily grouped while the public namespace is split through re-exports.
-multiple-public-types | src/internal/china_identity.rs | Identity rule, error, and facts form one cohesive parser unit.

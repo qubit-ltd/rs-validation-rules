@@ -1,4 +1,3 @@
-// qubit-style: allow multiple-public-types
 use std::sync::Arc;
 
 use qubit_validator::ArgumentReader;

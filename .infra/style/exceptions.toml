@@ -1,0 +1,11 @@
+format = 1
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/internal/china_identity.rs"
+reason = "Identity rule, error, and facts form one cohesive parser unit."
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/internal/legacy.rs"
+reason = "Legacy implementation is temporarily grouped while the public namespace is split through re-exports."
