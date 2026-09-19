@@ -24,5 +24,4 @@ pub mod regex_rule;
 /// Text validation rules.
 pub mod text;
 
-#[cfg(feature = "inventory")]
 pub use internal::legacy::registrations;

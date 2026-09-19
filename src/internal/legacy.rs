@@ -9,17 +9,17 @@ use qubit_validator::ExecutionError;
 use qubit_validator::ExecutionErrorKind;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
+use qubit_validator::PreparedOutcome;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
-use qubit_validator::RuleOutcome;
 use qubit_validator::ValidationValue;
 use qubit_validator::Validator;
 use qubit_validator::ValidatorDescriptor;
 use qubit_validator::ValidatorId;
 use qubit_validator::ValidatorRegistration;
 use qubit_validator::ValidatorSignature;
-use qubit_validator::Violation;
 use qubit_validator::ViolationCode;
+use qubit_validator::ViolationDraft;
 use qubit_validator::ViolationParam;
 #[cfg(feature = "inventory")]
 use qubit_validator::register_validator;
@@ -332,17 +332,16 @@ impl PreparedValidator for RegexPrepared {
         &self,
         value: ValidationValue<'_>,
         _context: &BoundValidationContext<'_>,
-    ) -> Result<RuleOutcome, ExecutionError> {
+    ) -> Result<PreparedOutcome, ExecutionError> {
         let Some(value) = value.as_text() else {
             return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
         };
         if self.0.validate(value, &()).is_ok() {
-            Ok(RuleOutcome::Valid)
+            Ok(PreparedOutcome::Valid)
         } else {
-            Ok(RuleOutcome::Invalid(vec![Violation::new(
-                ValidatorId::new("qubit.rules.text.regex"),
-                ViolationCode::new("text.pattern"),
-            )]))
+            Ok(PreparedOutcome::Invalid(vec![ViolationDraft::new(ViolationCode::new(
+                "text.pattern",
+            ))]))
         }
     }
 }
@@ -445,7 +444,7 @@ impl PreparedValidator for TextPrepared {
         &self,
         value: ValidationValue<'_>,
         _context: &BoundValidationContext<'_>,
-    ) -> Result<RuleOutcome, ExecutionError> {
+    ) -> Result<PreparedOutcome, ExecutionError> {
         let Some(value) = value.as_text() else {
             return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
         };
@@ -489,14 +488,13 @@ impl PreparedValidator for TextPrepared {
             }),
         };
         match result {
-            Ok(()) => Ok(RuleOutcome::Valid),
+            Ok(()) => Ok(PreparedOutcome::Valid),
             Err((code, _message, param)) => {
-                let rule_id = ValidatorId::new(text_rule_id(self.0));
-                let mut violation = Violation::new(rule_id, ViolationCode::new(code));
+                let mut violation = ViolationDraft::new(ViolationCode::new(code));
                 if let Some(param) = param {
                     violation = violation.with_param("bound", param);
                 }
-                Ok(RuleOutcome::Invalid(vec![violation]))
+                Ok(PreparedOutcome::Invalid(vec![violation]))
             }
         }
     }
@@ -510,39 +508,23 @@ impl PreparedValidator for CountPrepared {
         &self,
         value: ValidationValue<'_>,
         _context: &BoundValidationContext<'_>,
-    ) -> Result<RuleOutcome, ExecutionError> {
+    ) -> Result<PreparedOutcome, ExecutionError> {
         let Some(value) = value.typed::<usize>() else {
             return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
         };
         match self.0.validate(value, &()) {
-            Ok(()) => Ok(RuleOutcome::Valid),
+            Ok(()) => Ok(PreparedOutcome::Valid),
             Err(error) => {
                 let (code, bound) = match error {
                     ItemCountError::TooSmall { min } => ("collection.too_small", min),
                     ItemCountError::TooLarge { max } => ("collection.too_large", max),
                 };
-                Ok(RuleOutcome::Invalid(vec![
-                    Violation::new(
-                        ValidatorId::new("qubit.rules.collection.item_count"),
-                        ViolationCode::new(code),
-                    )
-                    .with_param("bound", ViolationParam::Unsigned(bound as u128)),
+                Ok(PreparedOutcome::Invalid(vec![
+                    ViolationDraft::new(ViolationCode::new(code))
+                        .with_param("bound", ViolationParam::Unsigned(bound as u128)),
                 ]))
             }
         }
-    }
-}
-
-fn text_rule_id(rule: TextRule) -> &'static str {
-    match rule {
-        TextRule::NonBlank => "qubit.rules.text.non_blank",
-        TextRule::CharLength(_) => "qubit.rules.text.char_length",
-        TextRule::ByteLength(_) => "qubit.rules.text.byte_length",
-        TextRule::AllowedChars(_) => "qubit.rules.text.allowed_chars",
-        TextRule::Format(TextFormat::Email) => "qubit.rules.text.email_ascii",
-        TextRule::Format(TextFormat::Mobile) => "qubit.rules.text.china_mobile_structure",
-        TextRule::Format(TextFormat::Uri) => "qubit.rules.text.uri",
-        TextRule::Format(TextFormat::Uuid) => "qubit.rules.text.uuid",
     }
 }
 
@@ -733,11 +715,11 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
 mod tests {
     use qubit_validator::BoundValidationContext;
     use qubit_validator::ValidationArgument;
+    use qubit_validator::ValidationOutcome;
     use qubit_validator::ValidatorRegistry;
 
     use super::InputType;
     use super::NamedValidationArgument;
-    use super::RuleOutcome;
     use super::ValidationValue;
     use super::registrations;
     #[cfg(feature = "china-identity")]
@@ -756,7 +738,7 @@ mod tests {
             .validate(ValidationValue::Text("hi"), &BoundValidationContext::new(&[]))
             .expect("length rule executes");
         assert!(
-            matches!(outcome, RuleOutcome::Invalid(violations) if violations[0].code().as_str() == "text.too_short")
+            matches!(outcome, ValidationOutcome::Invalid(violations) if violations[0].code().as_str() == "text.too_short" && violations[0].rule_id().as_str() == "qubit.rules.text.char_length")
         );
     }
 
