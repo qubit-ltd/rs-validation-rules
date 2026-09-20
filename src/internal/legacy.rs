@@ -3,16 +3,11 @@ use std::sync::Arc;
 use qubit_validator::ArgumentReader;
 use qubit_validator::BindError;
 use qubit_validator::BindErrorKind;
-use qubit_validator::BoundValidationContext;
 use qubit_validator::DependencySpec;
-use qubit_validator::ExecutionError;
-use qubit_validator::ExecutionErrorKind;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
-use qubit_validator::PreparedOutcome;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
-use qubit_validator::ValidationValue;
 use qubit_validator::Validator;
 use qubit_validator::ValidatorDescriptor;
 use qubit_validator::ValidatorId;
@@ -324,34 +319,14 @@ impl Validator<str, ()> for RegexMatch {
 }
 
 #[cfg(feature = "regex")]
-struct RegexPrepared(RegexMatch);
-
-#[cfg(feature = "regex")]
-impl PreparedValidator for RegexPrepared {
-    fn validate(
-        &self,
-        value: ValidationValue<'_>,
-        _context: &BoundValidationContext<'_>,
-    ) -> Result<PreparedOutcome, ExecutionError> {
-        let Some(value) = value.as_text() else {
-            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
-        };
-        if self.0.validate(value, &()).is_ok() {
-            Ok(PreparedOutcome::Valid)
-        } else {
-            Ok(PreparedOutcome::Invalid(vec![ViolationDraft::new(ViolationCode::new(
-                "text.pattern",
-            ))]))
-        }
-    }
-}
-
-#[cfg(feature = "regex")]
 fn prepare_regex(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let pattern = reader.required_str("pattern")?;
     reader.finish()?;
-    Ok(Arc::new(RegexPrepared(RegexMatch::new(pattern)?)))
+    Ok(qubit_validator::prepare_text_validator(
+        RegexMatch::new(pattern)?,
+        |_| ViolationDraft::new(ViolationCode::new("text.pattern")),
+    ))
 }
 
 /// A comparable inclusive/exclusive range rule.
@@ -419,170 +394,39 @@ impl<T: PartialOrd> Validator<T, ()> for Range<T> {
     }
 }
 
-#[derive(Clone, Copy)]
-enum TextRule {
-    NonBlank,
-    CharLength(CharLength),
-    ByteLength(ByteLength),
-    AllowedChars(AllowedChars),
-    Format(TextFormat),
-}
-
-#[derive(Clone, Copy)]
-enum TextFormat {
-    Email,
-    Mobile,
-    Uri,
-    Uuid,
-}
-
-#[derive(Clone, Copy)]
-struct TextPrepared(TextRule);
-
-impl PreparedValidator for TextPrepared {
-    fn validate(
-        &self,
-        value: ValidationValue<'_>,
-        _context: &BoundValidationContext<'_>,
-    ) -> Result<PreparedOutcome, ExecutionError> {
-        let Some(value) = value.as_text() else {
-            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
-        };
-        let result = match self.0 {
-            TextRule::NonBlank => NonBlank
-                .validate(value, &())
-                .map_err(|error| ("text.blank", error.to_string(), None)),
-            TextRule::CharLength(rule) => rule.validate(value, &()).map_err(|error| match error {
-                TextLengthError::TooShort { min } => (
-                    "text.too_short",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(min.into())),
-                ),
-                TextLengthError::TooLong { max } => (
-                    "text.too_long",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(max.into())),
-                ),
-            }),
-            TextRule::ByteLength(rule) => rule.validate(value, &()).map_err(|error| match error {
-                ByteLengthError::TooFewBytes { min } => (
-                    "text.too_few_bytes",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(min.into())),
-                ),
-                ByteLengthError::TooManyBytes { max } => (
-                    "text.too_many_bytes",
-                    error.to_string(),
-                    Some(ViolationParam::Unsigned(max.into())),
-                ),
-            }),
-            TextRule::AllowedChars(rule) => rule
-                .validate(value, &())
-                .map_err(|error| ("text.disallowed_characters", error.to_string(), None)),
-            TextRule::Format(format) => format_valid(format, value).then_some(()).ok_or_else(|| {
-                (
-                    format_code(format),
-                    "value does not match the requested format".to_owned(),
-                    None,
-                )
-            }),
-        };
-        match result {
-            Ok(()) => Ok(PreparedOutcome::Valid),
-            Err((code, _message, param)) => {
-                let mut violation = ViolationDraft::new(ViolationCode::new(code));
-                if let Some(param) = param {
-                    violation = violation.with_param("bound", param);
-                }
-                Ok(PreparedOutcome::Invalid(vec![violation]))
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct CountPrepared(ItemCount);
-
-impl PreparedValidator for CountPrepared {
-    fn validate(
-        &self,
-        value: ValidationValue<'_>,
-        _context: &BoundValidationContext<'_>,
-    ) -> Result<PreparedOutcome, ExecutionError> {
-        let Some(value) = value.typed::<usize>() else {
-            return Err(ExecutionError::new(ExecutionErrorKind::InputTypeMismatch));
-        };
-        match self.0.validate(value, &()) {
-            Ok(()) => Ok(PreparedOutcome::Valid),
-            Err(error) => {
-                let (code, bound) = match error {
-                    ItemCountError::TooSmall { min } => ("collection.too_small", min),
-                    ItemCountError::TooLarge { max } => ("collection.too_large", max),
-                };
-                Ok(PreparedOutcome::Invalid(vec![
-                    ViolationDraft::new(ViolationCode::new(code))
-                        .with_param("bound", ViolationParam::Unsigned(bound as u128)),
-                ]))
-            }
-        }
-    }
-}
-
-fn format_code(format: TextFormat) -> &'static str {
-    match format {
-        TextFormat::Email => "text.email",
-        TextFormat::Mobile => "text.mobile",
-        TextFormat::Uri => "text.uri",
-        TextFormat::Uuid => "text.uuid",
-    }
-}
-
-fn format_valid(format: TextFormat, value: &str) -> bool {
-    match format {
-        TextFormat::Email => {
-            let mut parts = value.split('@');
-            let local = parts.next().unwrap_or_default();
-            let domain = parts.next().unwrap_or_default();
-            !local.is_empty() && !domain.is_empty() && parts.next().is_none() && !value.chars().any(char::is_whitespace)
-        }
-        TextFormat::Mobile => {
-            value.len() == 11 && value.starts_with('1') && value.chars().all(|character| character.is_ascii_digit())
-        }
-        TextFormat::Uri => value.contains(':') && !value.chars().any(char::is_whitespace),
-        TextFormat::Uuid => {
-            value.len() == 36
-                && value.as_bytes().iter().enumerate().all(|(index, byte)| {
-                    if [8, 13, 18, 23].contains(&index) {
-                        *byte == b'-'
-                    } else {
-                        byte.is_ascii_hexdigit()
-                    }
-                })
-        }
-    }
-}
-
 fn no_args(args: &[NamedValidationArgument<'_>]) -> Result<(), BindError> {
     ArgumentReader::new(args)?.finish()
 }
 
 fn prepare_non_blank(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(Arc::new(TextPrepared(TextRule::NonBlank)))
+    Ok(qubit_validator::prepare_text_validator(NonBlank, |_| {
+        ViolationDraft::new(ViolationCode::new("text.blank"))
+    }))
 }
 
 fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let rule = CharLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
     reader.finish()?;
-    Ok(Arc::new(TextPrepared(TextRule::CharLength(rule))))
+    Ok(qubit_validator::prepare_text_validator(rule, |error| match error {
+        TextLengthError::TooShort { min } => ViolationDraft::new(ViolationCode::new("text.too_short"))
+            .with_param("bound", ViolationParam::Unsigned(min.into())),
+        TextLengthError::TooLong { max } => ViolationDraft::new(ViolationCode::new("text.too_long"))
+            .with_param("bound", ViolationParam::Unsigned(max.into())),
+    }))
 }
 
 fn prepare_byte_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let rule = ByteLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
     reader.finish()?;
-    Ok(Arc::new(TextPrepared(TextRule::ByteLength(rule))))
+    Ok(qubit_validator::prepare_text_validator(rule, |error| match error {
+        ByteLengthError::TooFewBytes { min } => ViolationDraft::new(ViolationCode::new("text.too_few_bytes"))
+            .with_param("bound", ViolationParam::Unsigned(min.into())),
+        ByteLengthError::TooManyBytes { max } => ViolationDraft::new(ViolationCode::new("text.too_many_bytes"))
+            .with_param("bound", ViolationParam::Unsigned(max.into())),
+    }))
 }
 
 fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
@@ -598,28 +442,34 @@ fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn
         }
     };
     reader.finish()?;
-    Ok(Arc::new(TextPrepared(TextRule::AllowedChars(AllowedChars::new(set)))))
-}
-
-fn prepare_format(
-    format: TextFormat,
-    args: &[NamedValidationArgument<'_>],
-) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
-    Ok(Arc::new(TextPrepared(TextRule::Format(format))))
+    Ok(qubit_validator::prepare_text_validator(AllowedChars::new(set), |_| {
+        ViolationDraft::new(ViolationCode::new("text.disallowed_characters"))
+    }))
 }
 
 fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    prepare_format(TextFormat::Email, args)
+    no_args(args)?;
+    Ok(qubit_validator::prepare_text_validator(EmailAscii, |_| {
+        ViolationDraft::new(ViolationCode::new("text.email"))
+    }))
 }
 fn prepare_mobile(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    prepare_format(TextFormat::Mobile, args)
+    no_args(args)?;
+    Ok(qubit_validator::prepare_text_validator(ChinaMobileStructure, |_| {
+        ViolationDraft::new(ViolationCode::new("text.mobile"))
+    }))
 }
 fn prepare_uri(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    prepare_format(TextFormat::Uri, args)
+    no_args(args)?;
+    Ok(qubit_validator::prepare_text_validator(Uri, |_| {
+        ViolationDraft::new(ViolationCode::new("text.uri"))
+    }))
 }
 fn prepare_uuid(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    prepare_format(TextFormat::Uuid, args)
+    no_args(args)?;
+    Ok(qubit_validator::prepare_text_validator(UuidText, |_| {
+        ViolationDraft::new(ViolationCode::new("text.uuid"))
+    }))
 }
 
 fn prepare_item_count(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
@@ -628,7 +478,12 @@ fn prepare_item_count(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Pr
     let max = reader.optional_u32("max")?.map(|value| value as usize);
     let rule = ItemCount::new(min, max)?;
     reader.finish()?;
-    Ok(Arc::new(CountPrepared(rule)))
+    Ok(qubit_validator::prepare_typed_validator(rule, |error| match error {
+        ItemCountError::TooSmall { min } => ViolationDraft::new(ViolationCode::new("collection.too_small"))
+            .with_param("bound", ViolationParam::Unsigned(min as u128)),
+        ItemCountError::TooLarge { max } => ViolationDraft::new(ViolationCode::new("collection.too_large"))
+            .with_param("bound", ViolationParam::Unsigned(max as u128)),
+    }))
 }
 
 const EMPTY_DEPS: &[DependencySpec] = &[];
@@ -716,23 +571,27 @@ mod tests {
     use qubit_validator::BoundValidationContext;
     use qubit_validator::ValidationArgument;
     use qubit_validator::ValidationOutcome;
+    use qubit_validator::ValidationValue;
+    use qubit_validator::Validator;
     use qubit_validator::ValidatorRegistry;
 
     use super::InputType;
     use super::NamedValidationArgument;
-    use super::ValidationValue;
     use super::registrations;
     #[cfg(feature = "china-identity")]
     use crate::identity::ChinaIdentity18;
     #[cfg(feature = "china-identity")]
     use crate::identity::ChinaIdentityError;
+    use crate::text::ChinaMobileStructure;
+    use crate::text::EmailAscii;
+    use crate::text::Uri;
 
     #[test]
     fn standard_rules_bind_and_report_structured_violations() {
         let registry = ValidatorRegistry::from_registrations(registrations()).expect("valid rules");
         let arguments = [NamedValidationArgument::new("min", ValidationArgument::Unsigned(3))];
         let bound = registry
-            .bind("qubit.rules.text.char_length", InputType::Text, &arguments)
+            .bind("qubit.rules.text.char_length", InputType::Text, &arguments, &[])
             .expect("length rule binds");
         let outcome = bound
             .validate(ValidationValue::Text("hi"), &BoundValidationContext::new(&[]))
@@ -740,6 +599,34 @@ mod tests {
         assert!(
             matches!(outcome, ValidationOutcome::Invalid(violations) if violations[0].code().as_str() == "text.too_short" && violations[0].rule_id().as_str() == "qubit.rules.text.char_length")
         );
+    }
+
+    #[test]
+    fn registry_rules_match_typed_rules_for_strict_profiles() {
+        let registry = ValidatorRegistry::from_registrations(registrations()).expect("valid rules");
+        let cases = [
+            (
+                "qubit.rules.text.email_ascii",
+                "a..b@example.com",
+                EmailAscii.validate("a..b@example.com", &()).is_ok(),
+            ),
+            (
+                "qubit.rules.text.china_mobile_structure",
+                "12000000000",
+                ChinaMobileStructure.validate("12000000000", &()).is_ok(),
+            ),
+            ("qubit.rules.text.uri", "1:abc", Uri.validate("1:abc", &()).is_ok()),
+        ];
+        for (rule_id, value, typed_valid) in cases {
+            let bound = registry.bind(rule_id, InputType::Text, &[], &[]).expect("rule binds");
+            let dynamic_valid = matches!(
+                bound
+                    .validate(ValidationValue::Text(value), &BoundValidationContext::new(&[]))
+                    .expect("rule executes"),
+                ValidationOutcome::Valid
+            );
+            assert_eq!(dynamic_valid, typed_valid, "rule {rule_id} disagrees");
+        }
     }
 
     #[cfg(feature = "inventory")]

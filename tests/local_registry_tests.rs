@@ -12,7 +12,7 @@ fn standard_rules_are_available_to_local_registries_without_inventory() {
     let registry = ValidatorRegistry::from_registrations(registrations()).expect("standard rules are valid");
     let arguments = [NamedValidationArgument::new("min", ValidationArgument::Unsigned(3))];
     let bound = registry
-        .bind("qubit.rules.text.char_length", InputType::Text, &arguments)
+        .bind("qubit.rules.text.char_length", InputType::Text, &arguments, &[])
         .expect("length rule binds");
     let outcome = bound
         .validate(ValidationValue::Text("hi"), &BoundValidationContext::new(&[]))
