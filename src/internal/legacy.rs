@@ -3,6 +3,7 @@ use std::sync::Arc;
 use qubit_validator::ArgumentReader;
 use qubit_validator::BindError;
 use qubit_validator::BindErrorKind;
+use qubit_validator::BoundValidationContext;
 use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
@@ -190,6 +191,26 @@ pub enum TextRuleError {
     Uuid,
     #[error("text is not a valid mobile number")]
     Mobile,
+    /// Text differs from a required text dependency.
+    #[error("text does not match its required dependency")]
+    DependencyMismatch,
+}
+
+/// Requires target text to match the first declared text dependency.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MatchesDependency;
+
+impl<'a> Validator<str, BoundValidationContext<'a>> for MatchesDependency {
+    type Error = TextRuleError;
+
+    fn validate(&self, value: &str, context: &BoundValidationContext<'a>) -> Result<(), Self::Error> {
+        let expected = context.text(0).map_err(|_| TextRuleError::DependencyMismatch)?;
+        if value == expected {
+            Ok(())
+        } else {
+            Err(TextRuleError::DependencyMismatch)
+        }
+    }
 }
 
 /// ASCII email profile used by the standard rules.
@@ -453,6 +474,14 @@ fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepare
         ViolationDraft::new(ViolationCode::new("text.email"))
     }))
 }
+
+fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(args)?;
+    Ok(qubit_validator::prepare_contextual_text_validator(
+        MatchesDependency,
+        |_| ViolationDraft::new(ViolationCode::new("text.dependency_mismatch")),
+    ))
+}
 fn prepare_mobile(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
     Ok(qubit_validator::prepare_text_validator(ChinaMobileStructure, |_| {
@@ -492,6 +521,9 @@ const TEXT_SIG_BOUNDS: ValidatorSignature = ValidatorSignature::new(InputType::T
 const BYTE_SIG_BOUNDS: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_byte_length);
 const ALLOWED_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_allowed_chars);
 const EMAIL_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_email);
+const MATCHES_DEPENDENCY_DEPS: &[DependencySpec] = &[DependencySpec::new("expected", InputType::Text, false)];
+const MATCHES_DEPENDENCY_SIG: ValidatorSignature =
+    ValidatorSignature::new(InputType::Text, MATCHES_DEPENDENCY_DEPS, prepare_matches_dependency);
 const MOBILE_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_mobile);
 const URI_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uri);
 const UUID_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uuid);
@@ -504,6 +536,7 @@ static DESC_CHAR_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_S
 static DESC_BYTE_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[BYTE_SIG_BOUNDS]);
 static DESC_ALLOWED: ValidatorDescriptor = ValidatorDescriptor::new(&[ALLOWED_SIG]);
 static DESC_EMAIL: ValidatorDescriptor = ValidatorDescriptor::new(&[EMAIL_SIG]);
+static DESC_MATCHES_DEPENDENCY: ValidatorDescriptor = ValidatorDescriptor::new(&[MATCHES_DEPENDENCY_SIG]);
 static DESC_MOBILE: ValidatorDescriptor = ValidatorDescriptor::new(&[MOBILE_SIG]);
 static DESC_URI: ValidatorDescriptor = ValidatorDescriptor::new(&[URI_SIG]);
 static DESC_UUID: ValidatorDescriptor = ValidatorDescriptor::new(&[UUID_SIG]);
@@ -521,6 +554,11 @@ register_validator!(id = "qubit.rules.text.byte_length", descriptor = &DESC_BYTE
 register_validator!(id = "qubit.rules.text.allowed_chars", descriptor = &DESC_ALLOWED);
 #[cfg(feature = "inventory")]
 register_validator!(id = "qubit.rules.text.email_ascii", descriptor = &DESC_EMAIL);
+#[cfg(feature = "inventory")]
+register_validator!(
+    id = "qubit.rules.text.matches_dependency",
+    descriptor = &DESC_MATCHES_DEPENDENCY
+);
 #[cfg(feature = "inventory")]
 register_validator!(
     id = "qubit.rules.text.china_mobile_structure",
@@ -545,6 +583,7 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
         ("qubit.rules.text.byte_length", &DESC_BYTE_LENGTH),
         ("qubit.rules.text.allowed_chars", &DESC_ALLOWED),
         ("qubit.rules.text.email_ascii", &DESC_EMAIL),
+        ("qubit.rules.text.matches_dependency", &DESC_MATCHES_DEPENDENCY),
         ("qubit.rules.text.china_mobile_structure", &DESC_MOBILE),
         ("qubit.rules.text.uri", &DESC_URI),
         ("qubit.rules.text.uuid", &DESC_UUID),

@@ -22,6 +22,7 @@ pub use crate::internal::legacy::CharLength;
 pub use crate::internal::legacy::CharacterSet;
 pub use crate::internal::legacy::ChinaMobileStructure;
 pub use crate::internal::legacy::EmailAscii;
+pub use crate::internal::legacy::MatchesDependency;
 pub use crate::internal::legacy::NonBlank;
 pub use crate::internal::legacy::NonBlankError;
 pub use crate::internal::legacy::TextLengthError;
@@ -54,6 +55,9 @@ pub mod allowed_chars {
 pub mod email_ascii {
     pub use super::EmailAscii;
     pub use super::EmailAsciiError;
+}
+pub mod matches_dependency {
+    pub use super::MatchesDependency;
 }
 pub mod uri {
     pub use super::Uri;
