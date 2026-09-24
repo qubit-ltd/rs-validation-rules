@@ -18,8 +18,8 @@ Add both crates to your application's `Cargo.toml` (Rust 1.94 or later):
 
 ```toml
 [dependencies]
-qubit-validation-rules = "0.1.0"
-qubit-validator = "0.1.0"
+qubit-validation-rules = "0.1"
+qubit-validator = "0.1"
 ```
 
 Enable optional rule families or global discovery with the features described

@@ -17,8 +17,8 @@
 
 ```toml
 [dependencies]
-qubit-validation-rules = "0.1.0"
-qubit-validator = "0.1.0"
+qubit-validation-rules = "0.1"
+qubit-validator = "0.1"
 ```
 
 需要额外的规则族或全局自动发现时，启用下文对应的 feature。
