@@ -63,30 +63,20 @@ impl Validator<str, ()> for EmailAscii {
     }
 }
 
-/// Absolute URI profile used by the standard rules.
+/// Validates the generic RFC 3986 syntax of an absolute URI.
+///
+/// This accepts non-Web schemes such as `mailto:` and `urn:`. It does not
+/// verify that a host exists or that a scheme is appropriate for an
+/// application.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Uri;
 
 impl Validator<str, ()> for Uri {
     type Error = TextRuleError;
     fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
-        let Some((scheme, rest)) = value.split_once(':') else {
-            return Err(TextRuleError::Uri);
-        };
-        if scheme.is_empty()
-            || !scheme.chars().enumerate().all(|(i, c)| {
-                if i == 0 {
-                    c.is_ascii_alphabetic()
-                } else {
-                    c.is_ascii_alphanumeric() || "+-.".contains(c)
-                }
-            })
-            || rest.is_empty()
-            || value.chars().any(char::is_whitespace)
-        {
-            return Err(TextRuleError::Uri);
-        }
-        Ok(())
+        fluent_uri::Uri::parse(value)
+            .map(|_| ())
+            .map_err(|_| TextRuleError::Uri)
     }
 }
 

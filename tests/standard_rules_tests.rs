@@ -161,7 +161,8 @@ fn test_strict_text_profiles_accept_valid_and_reject_invalid_inputs() {
     }
 
     assert_eq!(Uri.validate("https://example.com/path", &()), Ok(()));
-    for invalid in ["", "relative", "1bad:rest", "a:", "a:b c"] {
+    assert_eq!(Uri.validate("a:", &()), Ok(()));
+    for invalid in ["", "relative", "1bad:rest", "a:b c"] {
         assert_eq!(Uri.validate(invalid, &()), Err(TextRuleError::Uri), "{invalid}");
     }
 

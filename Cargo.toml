@@ -19,5 +19,6 @@ china-identity = ["dep:chrono"]
 [dependencies]
 qubit-validator = { version = "0.1.0", path = "../rs-validator", default-features = false }
 thiserror = "^2.0"
+fluent-uri = "0.4.1"
 chrono = { version = "^0.4", default-features = false, features = ["std"], optional = true }
 regex = { version = "^1.13", optional = true }
