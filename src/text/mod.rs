@@ -1,73 +1,23 @@
-// =============================================================================
-//    Copyright (c) 2025 - 2026 Haixing Hu.
-//
-//    SPDX-License-Identifier: Apache-2.0
-//
-//    Licensed under the Apache License, Version 2.0.
-// =============================================================================
+//! Text validation rules.
 
-#![allow(missing_docs)]
+mod allowed_chars;
+mod format;
+mod length;
+mod matches_dependency;
+mod non_blank;
 
-pub use TextRuleError as CharLengthError;
-pub use TextRuleError as EmailAsciiError;
-pub use TextRuleError as UriError;
-pub use TextRuleError as UuidTextError;
-pub use TextRuleError as ChinaMobileStructureError;
-
-pub use crate::internal::legacy::AllowedChars;
-pub use crate::internal::legacy::AllowedCharsError;
-pub use crate::internal::legacy::ByteLength;
-pub use crate::internal::legacy::ByteLengthError;
-pub use crate::internal::legacy::CharLength;
-pub use crate::internal::legacy::CharacterSet;
-pub use crate::internal::legacy::ChinaMobileStructure;
-pub use crate::internal::legacy::EmailAscii;
-pub use crate::internal::legacy::MatchesDependency;
-pub use crate::internal::legacy::NonBlank;
-pub use crate::internal::legacy::NonBlankError;
-pub use crate::internal::legacy::TextLengthError;
-pub use crate::internal::legacy::TextRuleError;
-pub use crate::internal::legacy::Uri;
-pub use crate::internal::legacy::UuidText;
-
-pub mod non_blank {
-    pub use super::NonBlank;
-    pub use super::NonBlankError;
-}
-pub mod char_length {
-    pub use super::CharLength;
-    pub use super::CharLengthError;
-}
-pub mod byte_length {
-    pub use super::ByteLength;
-    pub use super::ByteLengthError;
-}
-pub mod character_set {
-    pub use super::AllowedChars;
-    pub use super::AllowedCharsError;
-    pub use super::CharacterSet;
-}
-pub mod allowed_chars {
-    pub use super::AllowedChars;
-    pub use super::AllowedCharsError;
-    pub use super::CharacterSet;
-}
-pub mod email_ascii {
-    pub use super::EmailAscii;
-    pub use super::EmailAsciiError;
-}
-pub mod matches_dependency {
-    pub use super::MatchesDependency;
-}
-pub mod uri {
-    pub use super::Uri;
-    pub use super::UriError;
-}
-pub mod uuid_text {
-    pub use super::UuidText;
-    pub use super::UuidTextError;
-}
-pub mod china_mobile_structure {
-    pub use super::ChinaMobileStructure;
-    pub use super::ChinaMobileStructureError;
-}
+pub use allowed_chars::AllowedChars;
+pub use allowed_chars::AllowedCharsError;
+pub use allowed_chars::CharacterSet;
+pub use format::ChinaMobileStructure;
+pub use format::EmailAscii;
+pub use format::TextRuleError;
+pub use format::Uri;
+pub use format::UuidText;
+pub use length::ByteLength;
+pub use length::ByteLengthError;
+pub use length::CharLength;
+pub use length::TextLengthError;
+pub use matches_dependency::MatchesDependency;
+pub use non_blank::NonBlank;
+pub use non_blank::NonBlankError;

@@ -5,7 +5,33 @@ rule = "public-type-layout"
 path = "src/internal/china_identity.rs"
 reason = "Identity rule, error, and facts form one cohesive parser unit."
 
+
 [[exceptions]]
 rule = "public-type-layout"
-path = "src/internal/legacy.rs"
-reason = "Legacy implementation is temporarily grouped while the public namespace is split through re-exports."
+path = "src/text/non_blank.rs"
+reason = "The rule and its error form one focused public contract."
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/text/length.rs"
+reason = "The two length rules and their errors share one length implementation."
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/text/allowed_chars.rs"
+reason = "The character rule, character profile, and error form one contract."
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/text/format.rs"
+reason = "The text format rules share the TextRuleError contract."
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/collection/item_count.rs"
+reason = "The count rule and its error form one focused public contract."
+
+[[exceptions]]
+rule = "public-type-layout"
+path = "src/collection/range.rs"
+reason = "The generic range rule and its error form one focused public contract."

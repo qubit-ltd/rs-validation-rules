@@ -1,4 +1,7 @@
 use qubit_validation_rules::registrations;
+use qubit_validation_rules::text::ChinaMobileStructure;
+use qubit_validation_rules::text::EmailAscii;
+use qubit_validation_rules::text::Uri;
 use qubit_validator::BoundValidationContext;
 use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
@@ -7,7 +10,28 @@ use qubit_validator::ValidationArgument;
 use qubit_validator::ValidationOutcome;
 use qubit_validator::ValidationPath;
 use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
 use qubit_validator::ValidatorRegistry;
+
+#[cfg(feature = "inventory")]
+#[test]
+fn test_inventory_registrations_match_explicit_builtin_ids() {
+    let mut explicit = registrations()
+        .into_iter()
+        .map(|registration| registration.id().as_str().to_owned())
+        .collect::<Vec<_>>();
+    let mut discovered = ValidatorRegistry::global()
+        .registrations()
+        .iter()
+        .filter(|registration| registration.id().as_str().starts_with("qubit.rules."))
+        .map(|registration| registration.id().as_str().to_owned())
+        .collect::<Vec<_>>();
+    explicit.sort();
+    discovered.sort();
+    assert_eq!(discovered, explicit);
+    #[cfg(feature = "regex")]
+    assert!(explicit.iter().any(|id| id == "qubit.rules.text.regex"));
+}
 
 #[test]
 fn standard_rules_are_available_to_local_registries_without_inventory() {
@@ -23,6 +47,34 @@ fn standard_rules_are_available_to_local_registries_without_inventory() {
         if violations.len() == 1
             && violations[0].rule_id().as_str() == "qubit.rules.text.char_length"
             && violations[0].code().as_str() == "text.too_short"));
+}
+
+#[test]
+fn test_registry_rules_match_typed_strict_profiles() {
+    let registry = ValidatorRegistry::from_registrations(registrations()).expect("valid rules");
+    let cases = [
+        (
+            "qubit.rules.text.email_ascii",
+            "a..b@example.com",
+            EmailAscii.validate("a..b@example.com", &()).is_ok(),
+        ),
+        (
+            "qubit.rules.text.china_mobile_structure",
+            "12000000000",
+            ChinaMobileStructure.validate("12000000000", &()).is_ok(),
+        ),
+        ("qubit.rules.text.uri", "1:abc", Uri.validate("1:abc", &()).is_ok()),
+    ];
+    for (rule_id, value, typed_valid) in cases {
+        let bound = registry.bind(rule_id, InputType::Text, &[], &[]).expect("rule binds");
+        let dynamic_valid = matches!(
+            bound
+                .validate(ValidationValue::Text(value), &BoundValidationContext::new(&[]))
+                .expect("rule executes"),
+            ValidationOutcome::Valid
+        );
+        assert_eq!(dynamic_valid, typed_valid, "rule {rule_id} disagrees");
+    }
 }
 
 #[test]

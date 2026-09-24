@@ -11,7 +11,9 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
+#[allow(missing_docs)] // T3 documents the remaining identity implementation.
 mod internal;
+mod registry;
 
 /// Collection validation rules.
 pub mod collection;
@@ -24,4 +26,4 @@ pub mod regex_rule;
 /// Text validation rules.
 pub mod text;
 
-pub use internal::legacy::registrations;
+pub use registry::registrations;

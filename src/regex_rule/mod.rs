@@ -1,18 +1,7 @@
-// =============================================================================
-//    Copyright (c) 2025 - 2026 Haixing Hu.
-//
-//    SPDX-License-Identifier: Apache-2.0
-//
-//    Licensed under the Apache License, Version 2.0.
-// =============================================================================
+//! Full-string regular expression rule.
 
-#![allow(missing_docs)]
+mod regex_match;
 
-pub use TextRuleError as RegexMatchError;
+pub use regex_match::RegexMatch;
 
-pub use crate::internal::legacy::RegexMatch;
-pub use crate::internal::legacy::TextRuleError;
-pub mod regex_match {
-    pub use super::RegexMatch;
-    pub use super::RegexMatchError;
-}
+pub use crate::text::TextRuleError;
