@@ -6,8 +6,9 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
-#![allow(missing_docs)]
+//! Public structural validation for 18-character mainland China identity
+//! numbers.
 
-pub use crate::internal::china_identity::ChinaIdentity18;
+pub use crate::internal::china_identity::ChinaIdentity18Structure;
 pub use crate::internal::china_identity::ChinaIdentityError;
 pub use crate::internal::china_identity::ChinaIdentityFacts;

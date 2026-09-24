@@ -11,7 +11,6 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
-#[allow(missing_docs)] // T3 documents the remaining identity implementation.
 mod internal;
 mod registry;
 
