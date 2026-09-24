@@ -1,35 +1,137 @@
 # qubit-validation-rules
 
-Typed validation rules for Qubit Rust services, built on `qubit-validator`.
+[![Rust CI](https://github.com/qubit-ltd/rs-validation-rules/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-validation-rules/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-validation-rules/coverage-badge.json)](https://qubit-ltd.github.io/rs-validation-rules/coverage/)
+[![Crates.io](https://img.shields.io/crates/v/qubit-validation-rules.svg?color=blue)](https://crates.io/crates/qubit-validation-rules)
+[![Rust](https://img.shields.io/badge/rust-1.94+-blue.svg?logo=rust)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![中文文档](https://img.shields.io/badge/文档-中文版-blue.svg)](README.zh_CN.md)
 
-## Usage
+`qubit-validation-rules` provides typed validation rules and named registrations
+for Qubit Rust services. Use it when an application needs the same rule to work
+through direct Rust calls and a `qubit-validator` registry, without maintaining
+two implementations or losing structured violation details.
 
-Rules remain usable as ordinary typed Rust validators. Applications that need
-dynamic rule selection can build an isolated registry without enabling any
-feature:
+## Installation
+
+Add both crates to your application's `Cargo.toml` (Rust 1.94 or later):
+
+```toml
+[dependencies]
+qubit-validation-rules = "0.1.0"
+qubit-validator = "0.1.0"
+```
+
+Enable optional rule families or global discovery with the features described
+below.
+
+## Quick Start
+
+Suppose a service accepts an email address and a callback URI. It can check
+both values directly, then bind the same URI rule by its stable ID when the
+rule comes from configuration:
 
 ```rust
 use qubit_validation_rules::registrations;
+use qubit_validation_rules::text::EmailAscii;
+use qubit_validation_rules::text::Uri;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
 use qubit_validator::ValidatorRegistry;
 
-let registry = ValidatorRegistry::from_registrations(registrations())?;
-# Ok::<(), Box<dyn std::error::Error>>(())
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let email = "user@example.com";
+    let callback_uri = "https://example.com/callback";
+    EmailAscii.validate(email, &())?;
+    Uri.validate(callback_uri, &())?;
+
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let rule = registry.bind("qubit.rules.text.uri", InputType::Text, &[], &[])?;
+    let outcome = rule.validate(
+        ValidationValue::Text(callback_uri),
+        &BoundValidationContext::new(&[]),
+    )?;
+    assert_eq!(outcome, ValidationOutcome::Valid);
+    Ok(())
+}
 ```
 
-Enable the `inventory` feature when the process-wide `ValidatorRegistry::global`
-registry and `register_validator!` discovery are desired. The `regex` and
-`china-identity` features add their respective rule families.
+The direct calls return typed errors. A bound registry rule returns a structured
+violation for invalid input, including its rule ID and violation code. The
+application must still decide which URI schemes and destinations it permits.
 
-The registry binding layer assigns the registered rule ID to every structured
-violation. A rule implementation only supplies its violation code and safe
-parameters.
+## Rules and Boundaries
 
-## Features
+| Rule | What it checks |
+| --- | --- |
+| `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. |
+| `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. |
+| `text::EmailAscii` | An ASCII email shape and length profile; it does not establish mailbox existence or delivery. |
+| `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
+| `collection::ItemCount` | Inclusive item-count bounds expressed as `usize`; the largest accepted bound depends on the target architecture. |
+| `collection::Range<T>` | Inclusive or exclusive bounds for comparable values; unordered values such as `NaN` are rejected. |
+| `identity::ChinaIdentity18Structure` | With `china-identity`, length, body digits, calendar birth date, and checksum of an 18-character mainland China identity number. It does not establish a valid or assigned region code, issuance, or the holder's identity. |
 
-- `inventory` — process-wide static registration.
-- `regex` — regular-expression rules.
-- `china-identity` — Mainland China identity-card rules.
+Other built-in rules cover blank text, allowed characters, text dependencies,
+canonical UUID text, mainland China mobile-number structure, and optionally
+regular expressions. `Range<T>` and `ChinaIdentity18Structure` are typed rules;
+the latter is deliberately absent from the built-in dynamic registrations.
+
+## Registration and Features
+
+`registrations()` lists the built-in dynamic rules for a local
+`ValidatorRegistry`, even with no features enabled. Choose this when each
+registry should have an explicit lifetime and contents. The `inventory`
+feature enables process-wide static discovery through
+`ValidatorRegistry::global()` and `register_validator!` for applications that
+choose global registration.
+
+| Feature | Effect |
+| --- | --- |
+| Default | No optional features; typed rules and `registrations()` remain available. |
+| `inventory` | Registers the built-in dynamic rules for global discovery. |
+| `regex` | Adds `regex_rule::RegexMatch` and its dynamic registration. |
+| `china-identity` | Adds the typed `identity::ChinaIdentity18Structure` rule; it is not dynamically registered. |
+
+## Learn More
+
+- Generate the API documentation locally with `cargo doc --all-features --no-deps --open`.
+- [中文文档](README.zh_CN.md)
+
+## Testing
+
+```bash
+# Run tests with the default feature set
+cargo test
+
+# Run tests with all declared features
+cargo test --all-features
+
+# Project CI checks
+./ci-check.sh
+
+# Check code coverage
+./coverage.sh
+```
 
 ## License
 
-Apache-2.0.
+Copyright (c) 2025 - 2026. Haixing Hu. All rights reserved.
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
+full license text.
+
+## Contributing
+
+Contributions are welcome. Please follow the Rust API guidelines, keep public
+API documentation and tests current, and run `./align-ci.sh` to format code and
+`./ci-check.sh` to satisfy CI requirements before submitting a pull request.
+
+## Author
+
+**Haixing Hu** - *Qubit Co. Ltd.*
+
+Repository: [https://github.com/qubit-ltd/rs-validation-rules](https://github.com/qubit-ltd/rs-validation-rules)
