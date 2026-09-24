@@ -16,18 +16,25 @@ pub enum RangeError {
     /// The value falls outside an inclusive or exclusive bound.
     OutOfRange,
     #[error("value cannot be ordered")]
-    /// The value cannot be compared with a bound.
+    /// The value cannot be ordered, even when both bounds are absent.
     Unordered,
 }
 
 impl<T: PartialOrd> Range<T> {
     /// Creates a range from `lower` and `upper`.
-    /// Returns `InvalidBounds` for reversed, empty, or incomparable paired
-    /// bounds.
+    /// Returns `InvalidBounds` for reversed, empty, or unordered bounds,
+    /// including a single bound that cannot be compared with itself.
     pub fn new(lower: std::ops::Bound<T>, upper: std::ops::Bound<T>) -> Result<Self, BindError> {
         use std::ops::Bound::Excluded;
         use std::ops::Bound::Included;
         use std::ops::Bound::Unbounded;
+        let unordered_bound = [&lower, &upper].into_iter().any(|bound| match bound {
+            Included(value) | Excluded(value) => value.partial_cmp(value).is_none(),
+            Unbounded => false,
+        });
+        if unordered_bound {
+            return Err(BindError::new(BindErrorKind::InvalidBounds));
+        }
         let invalid = match (&lower, &upper) {
             (Unbounded, _) | (_, Unbounded) => false,
             (Included(a), Included(b))
@@ -55,6 +62,9 @@ impl<T: PartialOrd> Validator<T, ()> for Range<T> {
         use std::ops::Bound::Excluded;
         use std::ops::Bound::Included;
         use std::ops::Bound::Unbounded;
+        if value.partial_cmp(value).is_none() {
+            return Err(RangeError::Unordered);
+        }
         let lower_ok = match &self.lower {
             Unbounded => true,
             Included(bound) => value.partial_cmp(bound).ok_or(RangeError::Unordered)?.is_ge(),

@@ -22,8 +22,8 @@ const EMPTY_DEPS: &[DependencySpec] = &[];
 /// Returns a bind error for invalid or unexpected arguments.
 fn prepare_item_count(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
-    let min = reader.optional_u32("min")?.map(|value| value as usize);
-    let max = reader.optional_u32("max")?.map(|value| value as usize);
+    let min = reader.optional_usize("min")?;
+    let max = reader.optional_usize("max")?;
     let rule = ItemCount::new(min, max)?;
     reader.finish()?;
     Ok(qubit_validator::prepare_typed_validator(rule, |error| match error {
