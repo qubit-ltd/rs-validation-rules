@@ -86,3 +86,6 @@ external/
 
 # Locally installed pinned rs-infra tools
 .infra/tools/bin/
+
+# Git worktrees used for isolated development
+.worktrees/
