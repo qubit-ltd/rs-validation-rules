@@ -68,8 +68,8 @@ application must still decide which URI schemes and destinations it permits.
 
 | Rule | What it checks |
 | --- | --- |
-| `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. |
-| `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. |
+| `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. Its configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
+| `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. Its configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
 | `text::EmailAscii` | An ASCII email shape and length profile; it does not establish mailbox existence or delivery. |
 | `text::AllowedChars` | Checks the selected character profile. `PrintableUnicode` allows Unicode letters, marks, numbers, punctuation, symbols, and space separators; it rejects control, format, private-use, unassigned, line-separator, and paragraph-separator characters. |
 | `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
