@@ -25,13 +25,3 @@ reason = "The character rule, character profile, and error form one contract."
 rule = "public-type-layout"
 path = "src/text/format.rs"
 reason = "The text format rules share the TextRuleError contract."
-
-[[exceptions]]
-rule = "public-type-layout"
-path = "src/collection/item_count.rs"
-reason = "The count rule and its error form one focused public contract."
-
-[[exceptions]]
-rule = "public-type-layout"
-path = "src/collection/range.rs"
-reason = "The generic range rule and its error form one focused public contract."
