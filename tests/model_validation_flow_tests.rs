@@ -1,7 +1,17 @@
+// =============================================================================
+//    Copyright (c) 2025 - 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
+
 use qubit_validation_rules::registrations;
 use qubit_validator::BoundValidationContext;
+use qubit_validator::BoundValidator;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
+use qubit_validator::SkipReason;
 use qubit_validator::ValidationArgument;
 use qubit_validator::ValidationLimits;
 use qubit_validator::ValidationOutcome;
@@ -13,7 +23,7 @@ use qubit_validator::ValidatorRegistry;
 const CHAR_LENGTH_ID: &str = "qubit.rules.text.char_length";
 
 /// Binds the standard character-length rule for one password field.
-fn bind_password_rule(minimum: u32) -> qubit_validator::BoundValidator {
+fn bind_password_rule(minimum: u32) -> BoundValidator {
     let registry = ValidatorRegistry::from_registrations(registrations()).expect("built-in rules are valid");
     let arguments = [NamedValidationArgument::new(
         "min",
@@ -100,7 +110,7 @@ fn test_model_flow_marks_truncation_when_prerequisite_evidence_does_not_fit() {
         !report
             .skipped()
             .iter()
-            .any(|entry| { entry.reason() == qubit_validator::SkipReason::FailedPrerequisite })
+            .any(|entry| { entry.reason() == SkipReason::FailedPrerequisite })
     );
     assert!(report.is_truncated());
     assert!(!report.is_valid());

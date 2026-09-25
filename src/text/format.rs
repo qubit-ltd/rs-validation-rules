@@ -1,38 +1,85 @@
+// =============================================================================
+//    Copyright (c) 2025 - 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
+
+use fluent_uri::Uri as FluentUri;
 use qubit_validator::Validator;
+
 /// Errors produced by text format and character rules.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::EmailAscii;
+/// use qubit_validation_rules::text::TextRuleError;
+/// use qubit_validator::Validator;
+///
+/// assert_eq!(EmailAscii.validate("invalid", &()), Err(TextRuleError::Email));
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+#[must_use]
+// qubit-style: allow public-type-layout
 pub enum TextRuleError {
-    #[error("text is blank")]
     /// Text is blank.
+    #[error("text is blank")]
     Blank,
-    #[error("text contains disallowed characters")]
     /// Text contains a disallowed character.
+    #[error("text contains disallowed characters")]
     DisallowedCharacters,
-    #[error("text does not match the pattern")]
     /// Text does not match a regular expression.
+    #[error("text does not match the pattern")]
     Pattern,
-    #[error("text is not a valid email address")]
     /// Text does not meet the ASCII email profile.
+    #[error("text is not a valid email address")]
     Email,
-    #[error("text is not a valid URI")]
     /// Text does not meet the absolute URI profile.
+    #[error("text is not a valid URI")]
     Uri,
-    #[error("text is not a valid UUID")]
     /// Text does not have canonical UUID form.
+    #[error("text is not a valid UUID")]
     Uuid,
-    #[error("text is not a valid mobile number")]
     /// Text does not meet the mainland China mobile number structure.
+    #[error("text is not a valid mobile number")]
     Mobile,
     /// Text differs from a required text dependency.
     #[error("text does not match its required dependency")]
     DependencyMismatch,
 }
-/// ASCII email profile used by the standard rules.
+/// Checks a bounded ASCII email address profile without network access.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::EmailAscii;
+/// use qubit_validator::Validator;
+///
+/// assert!(EmailAscii.validate("user@example.com", &()).is_ok());
+/// assert!(EmailAscii.validate("user@例子.测试", &()).is_err());
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+// qubit-style: allow public-type-layout
 pub struct EmailAscii;
 
 impl Validator<str, ()> for EmailAscii {
+    /// Format failure emitted when the input does not meet the profile.
     type Error = TextRuleError;
+
+    /// Validates the local and domain parts against the crate's ASCII profile.
+    ///
+    /// # Parameters
+    /// - `value`: Email text to validate.
+    /// - `context`: Unused unit context.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` when the input satisfies the ASCII email profile.
+    ///
+    /// # Errors
+    /// Returns [`TextRuleError::Email`] when syntax, character, or length
+    /// constraints fail.
     fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
         let mut parts = value.split('@');
         let local = parts.next().ok_or(TextRuleError::Email)?;
@@ -68,24 +115,73 @@ impl Validator<str, ()> for EmailAscii {
 /// This accepts non-Web schemes such as `mailto:` and `urn:`. It does not
 /// verify that a host exists or that a scheme is appropriate for an
 /// application.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::Uri;
+/// use qubit_validator::Validator;
+///
+/// assert!(Uri.validate("mailto:user@example.com", &()).is_ok());
+/// assert!(Uri.validate("relative/path", &()).is_err());
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+// qubit-style: allow public-type-layout
 pub struct Uri;
 
 impl Validator<str, ()> for Uri {
+    /// URI syntax failure emitted when parsing rejects the input.
     type Error = TextRuleError;
+
+    /// Parses the input as a generic absolute URI.
+    ///
+    /// # Parameters
+    /// - `value`: URI text to parse.
+    /// - `context`: Unused unit context.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` when parsing accepts the absolute URI syntax.
+    ///
+    /// # Errors
+    /// Returns [`TextRuleError::Uri`] when the text is not valid absolute URI
+    /// syntax.
     fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
-        fluent_uri::Uri::parse(value)
-            .map(|_| ())
-            .map_err(|_| TextRuleError::Uri)
+        FluentUri::parse(value).map(|_| ()).map_err(|_| TextRuleError::Uri)
     }
 }
 
-/// Canonical 8-4-4-4-12 UUID text profile.
+/// Checks the canonical 8-4-4-4-12 UUID hexadecimal text shape.
+///
+/// This rule does not interpret UUID version or variant bits.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::UuidText;
+/// use qubit_validator::Validator;
+///
+/// assert!(UuidText.validate("550e8400-e29b-41d4-a716-446655440000", &()).is_ok());
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+// qubit-style: allow public-type-layout
 pub struct UuidText;
 
 impl Validator<str, ()> for UuidText {
+    /// UUID-shape failure emitted when the input does not match the profile.
     type Error = TextRuleError;
+
+    /// Checks UUID punctuation positions and ASCII hexadecimal digits.
+    ///
+    /// # Parameters
+    /// - `value`: Text to check.
+    /// - `context`: Unused unit context.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` when the text matches the canonical UUID shape.
+    ///
+    /// # Errors
+    /// Returns [`TextRuleError::Uuid`] when length, separators, or digits do
+    /// not match the canonical shape.
     fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
         if value.len() == 36
             && value.as_bytes().iter().enumerate().all(|(i, b)| {
@@ -103,12 +199,37 @@ impl Validator<str, ()> for UuidText {
     }
 }
 
-/// Mainland China mobile number structural profile.
+/// Checks the structural shape of an 11-digit mainland China mobile number.
+///
+/// The rule does not verify number assignment or reachability.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::ChinaMobileStructure;
+/// use qubit_validator::Validator;
+///
+/// assert!(ChinaMobileStructure.validate("13800138000", &()).is_ok());
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+// qubit-style: allow public-type-layout
 pub struct ChinaMobileStructure;
 
 impl Validator<str, ()> for ChinaMobileStructure {
+    /// Mobile-number structure failure emitted for a rejected input.
     type Error = TextRuleError;
+
+    /// Checks the length, prefix, and ASCII-digit structure.
+    ///
+    /// # Parameters
+    /// - `value`: Mobile number text to validate.
+    /// - `context`: Unused unit context.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` when the input has the expected mobile-number shape.
+    ///
+    /// # Errors
+    /// Returns [`TextRuleError::Mobile`] when the structural profile fails.
     fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
         if value.len() == 11
             && value.starts_with('1')

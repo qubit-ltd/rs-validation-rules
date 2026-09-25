@@ -28,6 +28,7 @@ use qubit_validation_rules::text::Uri;
 use qubit_validation_rules::text::UuidText;
 use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
+use qubit_validator::BoundValidator;
 use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
@@ -52,11 +53,7 @@ fn create_test_registry() -> ValidatorRegistry {
     ValidatorRegistry::from_registrations(registrations()).expect("standard registrations are valid")
 }
 
-fn bind_text_rule(
-    registry: &ValidatorRegistry,
-    id: &str,
-    arguments: &[NamedValidationArgument<'_>],
-) -> qubit_validator::BoundValidator {
+fn bind_text_rule(registry: &ValidatorRegistry, id: &str, arguments: &[NamedValidationArgument<'_>]) -> BoundValidator {
     registry
         .bind(id, InputType::Text, arguments, &[])
         .expect("text rule should bind")

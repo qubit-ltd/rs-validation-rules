@@ -6,11 +6,13 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+use std::collections::HashSet;
+
 use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
 
 #[test]
-fn public_rule_ids_match_explicit_registrations() {
+fn test_public_rule_ids_match_explicit_registrations() {
     let mut expected = vec![
         ids::TEXT_NON_BLANK,
         ids::TEXT_CHAR_LENGTH,
@@ -36,16 +38,12 @@ fn public_rule_ids_match_explicit_registrations() {
     assert_eq!(registered, expected);
     assert_eq!(
         registered.len(),
-        registered
-            .iter()
-            .copied()
-            .collect::<std::collections::HashSet<_>>()
-            .len()
+        registered.iter().copied().collect::<HashSet<_>>().len()
     );
 }
 
 #[test]
-fn public_rule_ids_keep_their_protocol_values() {
+fn test_public_rule_ids_keep_their_protocol_values() {
     assert_eq!(ids::TEXT_NON_BLANK, "qubit.rules.text.non_blank");
     assert_eq!(ids::TEXT_CHAR_LENGTH, "qubit.rules.text.char_length");
     assert_eq!(ids::TEXT_BYTE_LENGTH, "qubit.rules.text.byte_length");

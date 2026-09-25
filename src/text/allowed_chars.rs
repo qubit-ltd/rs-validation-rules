@@ -1,8 +1,22 @@
+// =============================================================================
+//    Copyright (c) 2025 - 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
+
 use qubit_validator::Validator;
 use unicode_general_category::GeneralCategory;
 use unicode_general_category::get_general_category;
 
 /// Returns whether `c` belongs to the printable Unicode category allowlist.
+///
+/// # Parameters
+/// - `c`: Unicode scalar value whose category is checked.
+///
+/// # Returns
+/// `true` when the category belongs to the printable profile.
 fn is_printable_unicode(c: char) -> bool {
     matches!(
         get_general_category(c),
@@ -31,8 +45,21 @@ fn is_printable_unicode(c: char) -> bool {
             | GeneralCategory::SpaceSeparator
     )
 }
+/// Character profiles accepted by [`AllowedChars`].
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::CharacterSet;
+/// use qubit_validation_rules::text::AllowedChars;
+/// use qubit_validator::Validator;
+///
+/// let rule = AllowedChars::new(CharacterSet::PrintableAscii);
+/// assert!(rule.validate("key_1", &()).is_ok());
+/// assert!(rule.validate("key\n1", &()).is_err());
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-/// Character profiles accepted by `AllowedChars`.
+// qubit-style: allow public-type-layout
 pub enum CharacterSet {
     /// Any Unicode scalar value.
     Unicode,
@@ -50,28 +77,77 @@ pub enum CharacterSet {
     /// ASCII letters and digits, period, underscore, and hyphen.
     Code,
 }
+/// Rejection reason returned when an input violates a character profile.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::AllowedChars;
+/// use qubit_validation_rules::text::AllowedCharsError;
+/// use qubit_validation_rules::text::CharacterSet;
+/// use qubit_validator::Validator;
+///
+/// let rule = AllowedChars::new(CharacterSet::Ascii);
+/// assert_eq!(rule.validate("中", &()), Err(AllowedCharsError::Invalid));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-/// Rejection reason for an allowed-character rule.
+#[must_use]
+// qubit-style: allow public-type-layout
 pub enum AllowedCharsError {
-    #[error("invalid characters")]
     /// Input contains a character outside the configured profile.
+    #[error("invalid characters")]
     Invalid,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// Checks every character against a selected character profile.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::AllowedChars;
+/// use qubit_validation_rules::text::CharacterSet;
+/// use qubit_validator::Validator;
+///
+/// let rule = AllowedChars::new(CharacterSet::PrintableAscii);
+/// assert!(rule.validate("hello", &()).is_ok());
+/// assert!(rule.validate("hello\n", &()).is_err());
+/// ```
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+// qubit-style: allow public-type-layout
 pub struct AllowedChars {
+    /// Character profile applied to every scalar value in the input.
     set: CharacterSet,
 }
 impl AllowedChars {
     /// Creates a rule for `set`.
+    ///
+    /// # Parameters
+    /// - `set`: Character profile applied to each input scalar value.
+    ///
+    /// # Returns
+    /// A rule configured with the selected profile.
+    #[must_use]
+    #[inline]
     pub const fn new(set: CharacterSet) -> Self {
         Self { set }
     }
 }
 impl Validator<str, ()> for AllowedChars {
+    /// Character-profile violation emitted for a rejected input.
     type Error = AllowedCharsError;
-    fn validate(&self, v: &str, _: &()) -> Result<(), Self::Error> {
-        let ok = v.chars().all(|c| match self.set {
+
+    /// Applies the configured character profile to every Unicode scalar value.
+    ///
+    /// # Parameters
+    /// - `value`: Text whose characters are checked.
+    /// - `context`: Unused unit context.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` when every character is accepted.
+    ///
+    /// # Errors
+    /// Returns [`AllowedCharsError::Invalid`] when any character is rejected.
+    fn validate(&self, value: &str, _context: &()) -> Result<(), Self::Error> {
+        let ok = value.chars().all(|c| match self.set {
             CharacterSet::Unicode => true,
             CharacterSet::PrintableUnicode => is_printable_unicode(c),
             CharacterSet::Ascii => c.is_ascii(),
@@ -90,7 +166,7 @@ mod tests {
     use super::CharacterSet;
 
     #[test]
-    fn printable_unicode_matches_the_general_category_allowlist() {
+    fn test_printable_unicode_matches_the_general_category_allowlist() {
         let rule = AllowedChars::new(CharacterSet::PrintableUnicode);
 
         for value in ["A", "中", "\u{0301}", "9", "!", "😀", " "] {

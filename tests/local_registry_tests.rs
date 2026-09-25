@@ -1,3 +1,11 @@
+// =============================================================================
+//    Copyright (c) 2025 - 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
+
 use qubit_validation_rules::registrations;
 use qubit_validation_rules::text::ChinaMobileStructure;
 use qubit_validation_rules::text::EmailAscii;
@@ -34,7 +42,7 @@ fn test_inventory_registrations_match_explicit_builtin_ids() {
 }
 
 #[test]
-fn standard_rules_are_available_to_local_registries_without_inventory() {
+fn test_standard_rules_are_available_to_local_registries_without_inventory() {
     let registry = ValidatorRegistry::from_registrations(registrations()).expect("standard rules are valid");
     let arguments = [NamedValidationArgument::new("min", ValidationArgument::Unsigned(3))];
     let bound = registry
@@ -78,7 +86,7 @@ fn test_registry_rules_match_typed_strict_profiles() {
 }
 
 #[test]
-fn dependency_text_rule_reads_its_declared_slot_and_redacts_values() {
+fn test_dependency_text_rule_reads_its_declared_slot_and_redacts_values() {
     let registry = ValidatorRegistry::from_registrations(registrations()).expect("standard rules are valid");
     let dependencies = [DependencySpec::new("expected", InputType::Text, false)];
     let bound = registry
@@ -114,7 +122,7 @@ fn dependency_text_rule_reads_its_declared_slot_and_redacts_values() {
 }
 
 #[test]
-fn dependency_text_rule_reports_missing_slot_before_invocation() {
+fn test_dependency_text_rule_reports_missing_slot_before_invocation() {
     let registry = ValidatorRegistry::from_registrations(registrations()).expect("standard rules are valid");
     let dependencies = [DependencySpec::new("expected", InputType::Text, false)];
     let bound = registry

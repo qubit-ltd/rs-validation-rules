@@ -1,3 +1,11 @@
+// =============================================================================
+//    Copyright (c) 2025 - 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
+
 use std::sync::Arc;
 
 use qubit_validator::ArgumentReader;
@@ -12,6 +20,8 @@ use qubit_validator::ValidatorSignature;
 use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
 use qubit_validator::ViolationParam;
+use qubit_validator::prepare_contextual_text_validator;
+use qubit_validator::prepare_text_validator;
 #[cfg(feature = "inventory")]
 use qubit_validator::register_validator;
 
@@ -29,27 +39,52 @@ use crate::text::Uri;
 use crate::text::UuidText;
 
 /// Rejects any arguments for a parameterless rule.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied to the rule.
+///
+/// # Returns
+/// `Ok(())` when no arguments remain unread.
+///
+/// # Errors
+/// Returns a bind error when any argument is supplied.
 pub(super) fn no_args(args: &[NamedValidationArgument<'_>]) -> Result<(), BindError> {
     ArgumentReader::new(args)?.finish()
 }
 
 /// Binds a non-blank rule with no arguments.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied while binding the rule.
+///
+/// # Returns
+/// A prepared text validator for the non-blank rule.
+///
+/// # Errors
+/// Returns a bind error when an argument is supplied.
 fn prepare_non_blank(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(qubit_validator::prepare_text_validator(NonBlank, |_| {
+    Ok(prepare_text_validator(NonBlank, |_| {
         ViolationDraft::new(ViolationCode::new("text.blank"))
     }))
 }
 
 /// Binds optional Unicode scalar-value length bounds.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments containing optional `min` and `max` bounds.
+///
+/// # Returns
+/// A prepared text validator using Unicode scalar-value bounds.
+///
+/// # Errors
+/// Returns a bind error when a bound is invalid or an unexpected argument is
+/// supplied.
 fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let rule = CharLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
     reader.finish()?;
-    Ok(qubit_validator::prepare_text_validator(rule, |error| match error {
+    Ok(prepare_text_validator(rule, |error| match error {
         TextLengthError::TooShort { min } => ViolationDraft::new(ViolationCode::new("text.too_short"))
             .with_param("bound", ViolationParam::Unsigned(min.into())),
         TextLengthError::TooLong { max } => ViolationDraft::new(ViolationCode::new("text.too_long"))
@@ -58,12 +93,21 @@ fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn P
 }
 
 /// Binds optional UTF-8 byte-length bounds.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments containing optional `min` and `max` bounds.
+///
+/// # Returns
+/// A prepared text validator using UTF-8 byte bounds.
+///
+/// # Errors
+/// Returns a bind error when a bound is invalid or an unexpected argument is
+/// supplied.
 fn prepare_byte_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let rule = ByteLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
     reader.finish()?;
-    Ok(qubit_validator::prepare_text_validator(rule, |error| match error {
+    Ok(prepare_text_validator(rule, |error| match error {
         ByteLengthError::TooFewBytes { min } => ViolationDraft::new(ViolationCode::new("text.too_few_bytes"))
             .with_param("bound", ViolationParam::Unsigned(min.into())),
         ByteLengthError::TooManyBytes { max } => ViolationDraft::new(ViolationCode::new("text.too_many_bytes"))
@@ -72,7 +116,16 @@ fn prepare_byte_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn P
 }
 
 /// Binds a required character-set profile.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments containing the required `set` profile.
+///
+/// # Returns
+/// A prepared text validator using the selected character profile.
+///
+/// # Errors
+/// Returns a bind error when the profile name is unknown or an unexpected
+/// argument is supplied.
 fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let set = match reader.required_str("set")? {
@@ -86,73 +139,132 @@ fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn
         }
     };
     reader.finish()?;
-    Ok(qubit_validator::prepare_text_validator(AllowedChars::new(set), |_| {
+    Ok(prepare_text_validator(AllowedChars::new(set), |_| {
         ViolationDraft::new(ViolationCode::new("text.disallowed_characters"))
     }))
 }
 
 /// Binds an ASCII email profile with no arguments.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied while binding the rule.
+///
+/// # Returns
+/// A prepared text validator for the ASCII email profile.
+///
+/// # Errors
+/// Returns a bind error when an argument is supplied.
 fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(qubit_validator::prepare_text_validator(EmailAscii, |_| {
+    Ok(prepare_text_validator(EmailAscii, |_| {
         ViolationDraft::new(ViolationCode::new("text.email"))
     }))
 }
 
 /// Binds a rule that compares its input with the declared dependency.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied while binding the rule.
+///
+/// # Returns
+/// A prepared contextual text validator for the first declared dependency.
+///
+/// # Errors
+/// Returns a bind error when an argument is supplied.
 fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(qubit_validator::prepare_contextual_text_validator(
-        MatchesDependency,
-        |_| ViolationDraft::new(ViolationCode::new("text.dependency_mismatch")),
-    ))
+    Ok(prepare_contextual_text_validator(MatchesDependency, |_| {
+        ViolationDraft::new(ViolationCode::new("text.dependency_mismatch"))
+    }))
 }
 /// Binds a mainland China mobile-number structure rule.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied while binding the rule.
+///
+/// # Returns
+/// A prepared text validator for the mobile-number structure profile.
+///
+/// # Errors
+/// Returns a bind error when an argument is supplied.
 fn prepare_mobile(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(qubit_validator::prepare_text_validator(ChinaMobileStructure, |_| {
+    Ok(prepare_text_validator(ChinaMobileStructure, |_| {
         ViolationDraft::new(ViolationCode::new("text.mobile"))
     }))
 }
 /// Binds an absolute URI profile with no arguments.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied while binding the rule.
+///
+/// # Returns
+/// A prepared text validator for absolute URI syntax.
+///
+/// # Errors
+/// Returns a bind error when an argument is supplied.
 fn prepare_uri(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(qubit_validator::prepare_text_validator(Uri, |_| {
+    Ok(prepare_text_validator(Uri, |_| {
         ViolationDraft::new(ViolationCode::new("text.uri"))
     }))
 }
 /// Binds a canonical UUID text profile with no arguments.
-/// Returns a bind error for invalid or unexpected arguments.
+///
+/// # Parameters
+/// - `args`: Named arguments supplied while binding the rule.
+///
+/// # Returns
+/// A prepared text validator for canonical UUID text.
+///
+/// # Errors
+/// Returns a bind error when an argument is supplied.
 fn prepare_uuid(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(qubit_validator::prepare_text_validator(UuidText, |_| {
+    Ok(prepare_text_validator(UuidText, |_| {
         ViolationDraft::new(ViolationCode::new("text.uuid"))
     }))
 }
+/// Shared empty dependency list for standalone text rules.
 const EMPTY_DEPS: &[DependencySpec] = &[];
+/// Binding signature for the non-blank text rule.
 const TEXT_SIG_NON_BLANK: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_non_blank);
+/// Binding signature for the character-length rule.
 const TEXT_SIG_BOUNDS: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_char_length);
+/// Binding signature for the UTF-8 byte-length rule.
 const BYTE_SIG_BOUNDS: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_byte_length);
+/// Binding signature for the allowed-character rule.
 const ALLOWED_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_allowed_chars);
+/// Binding signature for the ASCII email rule.
 const EMAIL_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_email);
+/// Required text dependency read by the dependency comparison rule.
 const MATCHES_DEPENDENCY_DEPS: &[DependencySpec] = &[DependencySpec::new("expected", InputType::Text, false)];
+/// Binding signature for the dependency comparison rule.
 const MATCHES_DEPENDENCY_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::Text, MATCHES_DEPENDENCY_DEPS, prepare_matches_dependency);
+/// Binding signature for the mainland China mobile-number rule.
 const MOBILE_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_mobile);
+/// Binding signature for the absolute URI rule.
 const URI_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uri);
+/// Binding signature for the canonical UUID rule.
 const UUID_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uuid);
+/// Registry descriptor for the non-blank text rule.
 pub(super) static DESC_NON_BLANK: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_NON_BLANK]);
+/// Registry descriptor for the Unicode scalar-value length rule.
 pub(super) static DESC_CHAR_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_BOUNDS]);
+/// Registry descriptor for the UTF-8 byte-length rule.
 pub(super) static DESC_BYTE_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[BYTE_SIG_BOUNDS]);
+/// Registry descriptor for the allowed-character rule.
 pub(super) static DESC_ALLOWED: ValidatorDescriptor = ValidatorDescriptor::new(&[ALLOWED_SIG]);
+/// Registry descriptor for the ASCII email rule.
 pub(super) static DESC_EMAIL: ValidatorDescriptor = ValidatorDescriptor::new(&[EMAIL_SIG]);
+/// Registry descriptor for the dependency comparison rule.
 pub(super) static DESC_MATCHES_DEPENDENCY: ValidatorDescriptor = ValidatorDescriptor::new(&[MATCHES_DEPENDENCY_SIG]);
+/// Registry descriptor for the mobile-number structure rule.
 pub(super) static DESC_MOBILE: ValidatorDescriptor = ValidatorDescriptor::new(&[MOBILE_SIG]);
+/// Registry descriptor for the absolute URI rule.
 pub(super) static DESC_URI: ValidatorDescriptor = ValidatorDescriptor::new(&[URI_SIG]);
+/// Registry descriptor for the canonical UUID rule.
 pub(super) static DESC_UUID: ValidatorDescriptor = ValidatorDescriptor::new(&[UUID_SIG]);
 #[cfg(feature = "inventory")]
 register_validator!(id = "qubit.rules.text.non_blank", descriptor = &DESC_NON_BLANK);

@@ -1,3 +1,13 @@
+// =============================================================================
+//    Copyright (c) 2025 - 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
+
+use std::iter;
+
 use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorId;
 use qubit_validator::ValidatorRegistration;
@@ -8,10 +18,14 @@ use super::regex;
 use super::text;
 use crate::ids;
 
+/// Source metadata attached to every built-in registration.
 const SOURCE: RegistrationSource = RegistrationSource::new("qubit-validation-rules", module_path!(), file!(), line!());
 
 /// Returns built-in rule registrations for a local validator registry.
 /// Feature-gated rules are included when their features are enabled.
+///
+/// # Returns
+/// Registrations in the crate's stable built-in rule set.
 pub fn registrations() -> Vec<ValidatorRegistration> {
     #[allow(unused_mut)]
     let mut rules = [
@@ -27,7 +41,7 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
     ]
     .into_iter()
     .map(|(id, descriptor)| ValidatorRegistration::new(ValidatorId::new(id), descriptor, SOURCE))
-    .chain(std::iter::once(ValidatorRegistration::new(
+    .chain(iter::once(ValidatorRegistration::new(
         ValidatorId::new(ids::COLLECTION_ITEM_COUNT),
         &collection::DESC_COUNT,
         SOURCE,
