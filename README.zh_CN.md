@@ -30,6 +30,7 @@ qubit-validator = "0.1"
 
 ```rust
 use qubit_validation_rules::registrations;
+use qubit_validation_rules::ids;
 use qubit_validation_rules::text::EmailAscii;
 use qubit_validation_rules::text::Uri;
 use qubit_validator::BoundValidationContext;
@@ -46,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Uri.validate(callback_uri, &())?;
 
     let registry = ValidatorRegistry::from_registrations(registrations())?;
-    let rule = registry.bind("qubit.rules.text.uri", InputType::Text, &[], &[])?;
+    let rule = registry.bind(ids::TEXT_URI, InputType::Text, &[], &[])?;
     let outcome = rule.validate(
         ValidationValue::Text(callback_uri),
         &BoundValidationContext::new(&[]),
@@ -66,6 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `text::CharLength` | 按 Unicode 标量值（`char`）计数，不按用户可见字符簇计数。 |
 | `text::ByteLength` | 按 UTF-8 字节计数；同一段文本的结果可能与 `CharLength` 不同。 |
 | `text::EmailAscii` | 检查 ASCII 邮箱轮廓和长度，不确认邮箱是否存在或能否收信。 |
+| `text::AllowedChars` | 按所选字符策略校验。`PrintableUnicode` 允许 Unicode 字母、标记、数字、标点、符号和空格分隔符；拒绝控制、格式、私用区、未分配、行分隔符及段分隔符字符。 |
 | `text::Uri` | 检查 RFC 3986 绝对 URI 的通用语法，接受 `mailto:`、`urn:` 等 scheme；不确认 scheme 是否适合应用、主机是否存在或地址是否可达。 |
 | `collection::ItemCount` | 使用 `usize` 表示包含端点的数量上下界；可接受的最大值随目标架构而变。 |
 | `collection::Range<T>` | 对可比较的值检查包含或排除端点的区间；`NaN` 等无法排序的值会被拒绝。 |
@@ -81,6 +83,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 局部 `ValidatorRegistry`，明确控制每个注册表的生命周期和内容。如果应用需要
 进程级自动发现，可以启用 `inventory`，使用 `ValidatorRegistry::global()` 和
 `register_validator!`。
+
+`ids` 模块公开 `ids::TEXT_URI` 等内置规则 ID 常量。应用代码引用内置规则时，
+应使用这些常量。
 
 | Feature | 作用 |
 | --- | --- |

@@ -33,6 +33,7 @@ rule comes from configuration:
 
 ```rust
 use qubit_validation_rules::registrations;
+use qubit_validation_rules::ids;
 use qubit_validation_rules::text::EmailAscii;
 use qubit_validation_rules::text::Uri;
 use qubit_validator::BoundValidationContext;
@@ -49,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Uri.validate(callback_uri, &())?;
 
     let registry = ValidatorRegistry::from_registrations(registrations())?;
-    let rule = registry.bind("qubit.rules.text.uri", InputType::Text, &[], &[])?;
+    let rule = registry.bind(ids::TEXT_URI, InputType::Text, &[], &[])?;
     let outcome = rule.validate(
         ValidationValue::Text(callback_uri),
         &BoundValidationContext::new(&[]),
@@ -70,6 +71,7 @@ application must still decide which URI schemes and destinations it permits.
 | `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. |
 | `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. |
 | `text::EmailAscii` | An ASCII email shape and length profile; it does not establish mailbox existence or delivery. |
+| `text::AllowedChars` | Checks the selected character profile. `PrintableUnicode` allows Unicode letters, marks, numbers, punctuation, symbols, and space separators; it rejects control, format, private-use, unassigned, line-separator, and paragraph-separator characters. |
 | `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
 | `collection::ItemCount` | Inclusive item-count bounds expressed as `usize`; the largest accepted bound depends on the target architecture. |
 | `collection::Range<T>` | Inclusive or exclusive bounds for comparable values; unordered values such as `NaN` are rejected. |
@@ -88,6 +90,10 @@ registry should have an explicit lifetime and contents. The `inventory`
 feature enables process-wide static discovery through
 `ValidatorRegistry::global()` and `register_validator!` for applications that
 choose global registration.
+
+The `ids` module exposes constants such as `ids::TEXT_URI` for stable built-in
+rule identifiers. Use these constants when referring to a built-in rule from
+application code.
 
 | Feature | Effect |
 | --- | --- |
