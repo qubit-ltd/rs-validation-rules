@@ -1,6 +1,14 @@
 use qubit_validator::BindError;
 use qubit_validator::BindErrorKind;
 use qubit_validator::Validator;
+
+fn below_min(count: usize, min: Option<u32>) -> bool {
+    min.is_some_and(|bound| count < bound as usize)
+}
+
+fn above_max(count: usize, max: Option<u32>) -> bool {
+    max.is_some_and(|bound| count > bound as usize)
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 /// Character-length validation errors.
 pub enum TextLengthError {
@@ -36,11 +44,11 @@ impl CharLength {
 impl Validator<str, ()> for CharLength {
     type Error = TextLengthError;
     fn validate(&self, v: &str, _: &()) -> Result<(), Self::Error> {
-        let n = v.chars().count() as u32;
-        if self.min.is_some_and(|m| n < m) {
+        let n = v.chars().count();
+        if below_min(n, self.min) {
             return Err(TextLengthError::TooShort { min: self.min.unwrap() });
         }
-        if self.max.is_some_and(|m| n > m) {
+        if above_max(n, self.max) {
             return Err(TextLengthError::TooLong { max: self.max.unwrap() });
         }
         Ok(())
@@ -81,13 +89,28 @@ impl ByteLength {
 impl Validator<str, ()> for ByteLength {
     type Error = ByteLengthError;
     fn validate(&self, v: &str, _: &()) -> Result<(), Self::Error> {
-        let n = v.len() as u32;
-        if self.min.is_some_and(|m| n < m) {
+        let n = v.len();
+        if below_min(n, self.min) {
             return Err(ByteLengthError::TooFewBytes { min: self.min.unwrap() });
         }
-        if self.max.is_some_and(|m| n > m) {
+        if above_max(n, self.max) {
             return Err(ByteLengthError::TooManyBytes { max: self.max.unwrap() });
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, target_pointer_width = "64"))]
+mod tests {
+    use super::above_max;
+    use super::below_min;
+
+    #[test]
+    fn counts_above_u32_max_do_not_wrap() {
+        let count = u32::MAX as usize + 1;
+
+        assert!(!below_min(count, Some(1)));
+        assert!(above_max(count, Some(u32::MAX)));
+        assert!(above_max(count, Some(0)));
     }
 }
