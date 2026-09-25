@@ -11,6 +11,10 @@
 如果同一条规则既要直接用于 Rust 代码，又要按配置从 `qubit-validator` 注册表中
 选取，这个库可以共用规则实现，并保留结构化违规信息。
 
+例如，服务可以直接校验邮箱和回调 URI；如果 URI 规则由配置决定，也能再按稳定
+规则 ID 从注册表中绑定同一条规则。本库负责提供可复用的校验行为，允许哪些 URI
+scheme 和目标地址仍由应用决定。
+
 ## 安装
 
 在应用的 `Cargo.toml` 中加入两个 crate；最低 Rust 版本为 1.94：
@@ -96,6 +100,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 延伸阅读
 
+- [用户手册](doc/user_guide.zh_CN.md)：了解类型化规则、注册表绑定、错误处理和
+  feature 选择。
 - 运行 `cargo doc --all-features --no-deps --open`，在本地生成并打开 API 文档。
 - [English documentation](README.md)
 

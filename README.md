@@ -12,6 +12,12 @@ for Qubit Rust services. Use it when an application needs the same rule to work
 through direct Rust calls and a `qubit-validator` registry, without maintaining
 two implementations or losing structured violation details.
 
+For example, a service can validate an email and callback URI directly, then
+bind that same URI rule by a stable ID when the rule is selected from
+configuration. This crate supplies reusable rule behavior; the application
+still owns policy decisions such as which URI schemes and destinations are
+allowed.
+
 ## Installation
 
 Add both crates to your application's `Cargo.toml` (Rust 1.94 or later):
@@ -104,6 +110,8 @@ application code.
 
 ## Learn More
 
+- [User guide](doc/user_guide.md) for typed rules, registry bindings, errors,
+  and feature choices.
 - Generate the API documentation locally with `cargo doc --all-features --no-deps --open`.
 - [中文文档](README.zh_CN.md)
 
