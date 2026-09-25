@@ -19,6 +19,8 @@ pub mod collection;
 /// Mainland China identity-card validation rules.
 #[cfg(feature = "china-identity")]
 pub mod identity;
+/// Stable identifiers for built-in validation rules.
+pub mod ids;
 /// Regular-expression validation rules.
 #[cfg(feature = "regex")]
 pub mod regex_rule;
