@@ -54,6 +54,10 @@ fn test_inventory_registrations_match_explicit_builtin_ids() {
             id if id == ids::COLLECTION_ITEM_COUNT => "collection.rs",
             #[cfg(feature = "regex")]
             id if id == ids::TEXT_REGEX => "regex.rs",
+            #[cfg(feature = "decimal")]
+            id if id == ids::DECIMAL_VALUE => "decimal.rs",
+            #[cfg(feature = "time")]
+            id if id == ids::TIME_PRECISION => "time.rs",
             _ => "text.rs",
         };
         assert!(registration.source().file().ends_with(expected_file));
