@@ -146,11 +146,13 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   排除或无界端点；端点有序不代表离散类型的区间内一定有值。
 - `CharLength`、`ByteLength` 和 `ItemCount` 至少要配置一个边界；绑定时 `min`、`max`
   都缺省会返回 `InvalidBounds`。
-- `UniqueItems::first_duplicate` 用 `PartialEq` 比较切片元素，返回第一对重复元素的
-  `(first_index, second_index)`，不会展示元素值。
-- `DecimalValue::new(precision, scale, min, max)` 校验 `BigDecimal`。先规范化数值表示：
-  `1.2300` 符合 scale 2，`1.234` 不符合；零按一位有效数字计算。依次检查 scale、precision、
-  range；上下界可包含或排除端点。规则不会替调用方舍入。
+- `UniqueItems::first_duplicate_with_limit(values, max_comparisons)` 用 `PartialEq` 比较元素，
+  返回第一对重复元素的 `(first_index, second_index)`。预算限制实际相等比较次数；少于两个
+  元素时零预算成功，否则返回 `ComparisonLimitExceeded`。最坏复杂度为 O(n²)。
+- `DecimalValue::new(precision, scale, min, max)` 按 `DECIMAL(p,s)` 容量校验 `BigDecimal`：
+  小数最多 `s` 位，整数最多 `p-s` 位。先忽略表示性尾零，因此 `(3,2)` 接受 `1.2300`、拒绝
+  `12`。依次检查 scale、precision、range；上下界可包含或排除端点。规则不会舍入输入。
+  这是有意的破坏性变更：旧版 `(1,0)` 会接受 `1e3`，新版拒绝。
 - `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
   不舍入，也不调整日期。
@@ -165,7 +167,7 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 缺少适配器或具体类型不符会使计划构建失败。重复元素在较后的索引处产生一条违规，参数中包含
 `first_index`；Map 数量违规使用字段路径。
 
-模型执行的 `max_nodes` 预算统计实际读取和规则调用；`max_comparisons` 统计每次去重成对比较
+模型执行的 `max_nodes` 预算统计实际读取和规则调用；模型级 `max_comparisons` 统计每次去重成对比较
 及 selector 元素规则调用，读取元素也消耗节点。每项工作开始前检查预算；超限返回
 `TraversalLimit` 和部分报告。去重最坏需要 O(n²) 次比较。这些预算属于模型执行，
 不作用于直接调用的类型化规则。该后端仍不支持 selector 内的标准约束、Map key/value 遍历
