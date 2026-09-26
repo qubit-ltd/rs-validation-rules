@@ -75,8 +75,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `text::Uri` | 检查 RFC 3986 绝对 URI 的通用语法，接受 `mailto:`、`urn:` 等 scheme；不确认 scheme 是否适合应用、主机是否存在或地址是否可达。 |
 | `collection::ItemCount` | 至少提供一个包含端点的数量边界，边界使用 `usize`；可接受的最大值随目标架构而变。 |
 | `collection::Range<T>` | 对可比较的值检查端点顺序及包含或排除关系；`NaN` 等无法排序的值会被拒绝。端点有序不保证离散类型中存在区间成员，例如开整数区间 `(1, 2)`。 |
-| `collection::UniqueItems` | 使用 `PartialEq` 找到切片中第一对重复元素；模型执行另需元素相等性适配器和比较预算。 |
-| `decimal::DecimalValue` | 启用 `decimal` 后，检查规范化 `BigDecimal` 的小数位数、可选有效数字位数和精确区间端点；不会对输入舍入。 |
+| `collection::UniqueItems` | 通过 `first_duplicate_with_limit(values, max_comparisons)` 查找第一对重复元素；限额约束实际 `PartialEq` 调用次数。模型执行另有独立比较预算。 |
+| `decimal::DecimalValue` | 启用 `decimal` 后，检查规范化 `BigDecimal` 的小数位数、可选 `DECIMAL(p,s)` 总容量和精确区间端点；不会对输入舍入。 |
 | `time::TimePrecision` | 启用 `time` 后，对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 检查精确的秒、毫秒、微秒或纳秒粒度，不做舍入。 |
 | `identity::ChinaIdentity18Structure` | 启用 `china-identity` 后，检查中国大陆 18 位身份证号码的长度、主体数字、出生日期及校验位；不确认地区码有效或已分配、号码已签发，也不核实持有人身份。 |
 

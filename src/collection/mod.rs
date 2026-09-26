@@ -8,12 +8,14 @@
 
 //! Collection and range validation rules.
 
+mod comparison_limit_exceeded;
 mod item_count;
 mod item_count_error;
 mod range;
 mod range_error;
 mod unique_items;
 
+pub use comparison_limit_exceeded::ComparisonLimitExceeded;
 pub use item_count::ItemCount;
 pub use item_count_error::ItemCountError;
 pub use range::Range;

@@ -6,8 +6,11 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+use std::cell::Cell;
 use std::ops::Bound;
+use std::rc::Rc;
 
+use qubit_validation_rules::collection::ComparisonLimitExceeded;
 use qubit_validation_rules::collection::Range;
 use qubit_validation_rules::collection::RangeError;
 use qubit_validation_rules::collection::UniqueItems;
@@ -27,11 +30,54 @@ const ITEM_COUNT_ID: &str = "qubit.rules.collection.item_count";
 
 #[test]
 fn test_unique_items_finds_first_partial_eq_duplicate() {
-    assert_eq!(UniqueItems::first_duplicate(&[1, 2, 1]), Some((0, 2)));
-    assert_eq!(UniqueItems::first_duplicate(&[1, 2, 2, 1]), Some((1, 2)));
-    assert_eq!(UniqueItems::first_duplicate::<i32>(&[]), None);
-    assert_eq!(UniqueItems::first_duplicate(&[1]), None);
-    assert_eq!(UniqueItems::first_duplicate(&[f64::NAN, f64::NAN]), None);
+    assert_eq!(UniqueItems::first_duplicate_with_limit(&[1, 2, 1], 2), Ok(Some((0, 2))));
+    assert_eq!(
+        UniqueItems::first_duplicate_with_limit(&[1, 2, 2, 1], 3),
+        Ok(Some((1, 2)))
+    );
+    assert_eq!(UniqueItems::first_duplicate_with_limit::<i32>(&[], 0), Ok(None));
+    assert_eq!(UniqueItems::first_duplicate_with_limit(&[1], 0), Ok(None));
+    assert_eq!(
+        UniqueItems::first_duplicate_with_limit(&[1, 2, 1], 1),
+        Err(ComparisonLimitExceeded)
+    );
+    assert_eq!(
+        UniqueItems::first_duplicate_with_limit(&[1, 2], 0),
+        Err(ComparisonLimitExceeded)
+    );
+    assert_eq!(
+        UniqueItems::first_duplicate_with_limit(&[f64::NAN, f64::NAN], 1),
+        Ok(None)
+    );
+    assert_eq!(
+        ComparisonLimitExceeded.to_string(),
+        "unique item comparison limit exceeded"
+    );
+}
+
+#[test]
+fn test_unique_items_does_not_exceed_comparison_budget() {
+    struct CountedEq {
+        value: i32,
+        comparisons: Rc<Cell<usize>>,
+    }
+    impl PartialEq for CountedEq {
+        fn eq(&self, other: &Self) -> bool {
+            self.comparisons.set(self.comparisons.get() + 1);
+            self.value == other.value
+        }
+    }
+
+    let comparisons = Rc::new(Cell::new(0));
+    let values = [1, 2, 3].map(|value| CountedEq {
+        value,
+        comparisons: Rc::clone(&comparisons),
+    });
+    assert_eq!(
+        UniqueItems::first_duplicate_with_limit(&values, 2),
+        Err(ComparisonLimitExceeded)
+    );
+    assert_eq!(comparisons.get(), 2);
 }
 
 /// Rejects values that cannot be ordered even when neither endpoint is bounded.

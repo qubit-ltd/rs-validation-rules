@@ -163,12 +163,16 @@ does not need the `inventory` feature for that path.
 - `ItemCount` uses `usize` bounds. `Range<T>` checks endpoint order and supports
   included, excluded, and unbounded endpoints for partially ordered values;
   endpoint ordering does not prove that a discrete type has an interior value.
-- `UniqueItems::first_duplicate` compares slice elements with `PartialEq` and
-  returns the first `(first_index, second_index)` pair. It does not display values.
-- `DecimalValue::new(precision, scale, min, max)` validates `BigDecimal`. It
-  normalizes numerical representation first: `1.2300` fits scale 2, but `1.234`
-  does not; zero has one significant digit. Checks run in scale, precision, range
-  order. Bounds can be inclusive or exclusive. A rule never rounds its input.
+- `UniqueItems::first_duplicate_with_limit(values, max_comparisons)` compares
+  elements with `PartialEq` and returns the first `(first_index, second_index)`
+  pair. The budget caps actual equality calls; zero succeeds for fewer than two
+  items and otherwise returns `ComparisonLimitExceeded`. Worst-case work is O(n²).
+- `DecimalValue::new(precision, scale, min, max)` validates `BigDecimal` using
+  `DECIMAL(p,s)` capacity: at most `s` fractional digits and `p-s` integer digits.
+  It normalizes representation-only trailing zeros first, so `(3,2)` accepts
+  `1.2300` and rejects `12`. Checks run in scale, precision, range order. Bounds
+  can be inclusive or exclusive. A rule never rounds its input. This intentionally
+  changes the old `(1,0)` behavior that accepted `1e3`.
 - `TimePrecision::new` supports `Second`, `Millisecond`, `Microsecond`, and
   `Nanosecond` for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`. The
   nanosecond component must divide evenly by the selected unit; no rounding or

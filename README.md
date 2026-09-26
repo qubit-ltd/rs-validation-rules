@@ -81,8 +81,8 @@ application must still decide which URI schemes and destinations it permits.
 | `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
 | `collection::ItemCount` | At least one inclusive item-count bound expressed as `usize` is required; the largest accepted bound depends on the target architecture. |
 | `collection::Range<T>` | Checks ordered inclusive or exclusive endpoints for comparable values; unordered values such as `NaN` are rejected. Ordered endpoints do not guarantee that a discrete type has a value inside, for example the open integer interval `(1, 2)`. |
-| `collection::UniqueItems` | Finds the first duplicate pair in a slice using `PartialEq`; model execution separately requires an element equality adapter and a comparison budget. |
-| `decimal::DecimalValue` | With `decimal`, checks normalized `BigDecimal` scale, optional significant-digit precision, and exact inclusive or exclusive bounds. It never rounds the input. |
+| `collection::UniqueItems` | Finds the first duplicate pair with `first_duplicate_with_limit(values, max_comparisons)`; the limit caps actual `PartialEq` calls. Model execution has its own comparison budget. |
+| `decimal::DecimalValue` | With `decimal`, checks normalized `BigDecimal` scale, optional `DECIMAL(p,s)` total capacity, and exact inclusive or exclusive bounds. It never rounds the input. |
 | `time::TimePrecision` | With `time`, checks exact second, millisecond, microsecond, or nanosecond resolution for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`, without rounding. |
 | `identity::ChinaIdentity18Structure` | With `china-identity`, length, body digits, calendar birth date, and checksum of an 18-character mainland China identity number. It does not establish a valid or assigned region code, issuance, or the holder's identity. |
 
