@@ -69,7 +69,7 @@ fn prepare_non_blank(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Pre
     }))
 }
 
-/// Binds optional Unicode scalar-value length bounds.
+/// Binds at least one Unicode scalar-value length bound.
 ///
 /// # Parameters
 /// - `args`: Named arguments containing optional `min` and `max` bounds.
@@ -78,8 +78,8 @@ fn prepare_non_blank(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Pre
 /// A prepared text validator using Unicode scalar-value bounds.
 ///
 /// # Errors
-/// Returns a bind error when a bound is invalid or an unexpected argument is
-/// supplied.
+/// Returns a bind error when both bounds are absent, a bound is invalid, or an
+/// unexpected argument is supplied.
 fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let rule = CharLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
@@ -92,7 +92,7 @@ fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn P
     }))
 }
 
-/// Binds optional UTF-8 byte-length bounds.
+/// Binds at least one UTF-8 byte-length bound.
 ///
 /// # Parameters
 /// - `args`: Named arguments containing optional `min` and `max` bounds.
@@ -101,8 +101,8 @@ fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn P
 /// A prepared text validator using UTF-8 byte bounds.
 ///
 /// # Errors
-/// Returns a bind error when a bound is invalid or an unexpected argument is
-/// supplied.
+/// Returns a bind error when both bounds are absent, a bound is invalid, or an
+/// unexpected argument is supplied.
 fn prepare_byte_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let rule = ByteLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;

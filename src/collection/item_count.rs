@@ -39,13 +39,16 @@ impl ItemCount {
     /// - `max`: Optional inclusive upper count bound.
     ///
     /// # Returns
-    /// The rule when the bounds are ordered.
+    /// The rule when at least one bound is present and the bounds are ordered.
     ///
     /// # Errors
-    /// Returns `ParameterOutOfRange` when both bounds are present and `min`
-    /// exceeds `max`.
+    /// Returns `InvalidBounds` when both bounds are absent, or
+    /// `ParameterOutOfRange` when both are present and `min` exceeds `max`.
     #[inline]
     pub fn new(min: Option<usize>, max: Option<usize>) -> Result<Self, BindError> {
+        if min.is_none() && max.is_none() {
+            return Err(BindError::new(BindErrorKind::InvalidBounds));
+        }
         if min.zip(max).is_some_and(|(a, b)| a > b) {
             return Err(BindError::new(BindErrorKind::ParameterOutOfRange));
         }

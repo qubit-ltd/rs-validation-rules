@@ -28,7 +28,7 @@ use crate::collection::ItemCountError;
 /// Collection rules do not read any validation dependencies.
 const EMPTY_DEPS: &[DependencySpec] = &[];
 
-/// Binds optional collection-size bounds.
+/// Binds at least one collection-size bound.
 ///
 /// # Parameters
 /// - `args`: Named arguments supplied while binding the count rule.
@@ -37,8 +37,8 @@ const EMPTY_DEPS: &[DependencySpec] = &[];
 /// A prepared count validator configured with the supplied optional bounds.
 ///
 /// # Errors
-/// Returns a bind error when an argument is invalid, out of range, or
-/// unexpected.
+/// Returns a bind error when both bounds are absent, an argument is invalid or
+/// out of range, or an unexpected argument is supplied.
 fn prepare_item_count(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let mut reader = ArgumentReader::new(args)?;
     let min = reader.optional_usize("min")?;

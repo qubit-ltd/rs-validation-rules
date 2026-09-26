@@ -140,7 +140,8 @@ Optional features add:
 
 `Range<T>` is a typed rule only. The China identity rule is also intentionally
 not included in dynamic registrations. Enable only the features the application
-uses.
+uses. `rs-model-metadata` builds a local registry from `registrations()` and
+does not need the `inventory` feature for that path.
 
 ### Other rule profiles
 
@@ -153,8 +154,11 @@ uses.
   confirm mailbox existence or delivery.
 - `Uri` accepts absolute RFC 3986 URI syntax, including non-Web schemes such
   as `mailto:` and `urn:`.
-- `ItemCount` uses `usize` bounds. `Range<T>` supports included, excluded, and
-  unbounded endpoints for partially ordered values.
+- `CharLength`, `ByteLength`, and `ItemCount` require at least one configured
+  bound. Binding with neither `min` nor `max` returns `InvalidBounds`.
+- `ItemCount` uses `usize` bounds. `Range<T>` checks endpoint order and supports
+  included, excluded, and unbounded endpoints for partially ordered values;
+  endpoint ordering does not prove that a discrete type has an interior value.
 
 ## Errors and Diagnostics
 
@@ -163,8 +167,9 @@ Typed rules return domain-specific errors such as `TextRuleError::Uri`,
 configurable bounds return `qubit_validator::BindError` when bounds are invalid.
 
 Registry binding checks the ID, input type, arguments, dependencies, and
-feature availability before a bound rule can execute. For example, bounds
-with `min` greater than `max` cannot be bound. During execution, a rejected
+feature availability before a bound rule can execute. Length and item-count
+rules reject two missing bounds with `BindErrorKind::InvalidBounds`; bounds
+with `min` greater than `max` return `ParameterOutOfRange`. During execution, a rejected
 value is represented by `ValidationOutcome::Invalid`; it is distinct from a
 binding error. Applications should use violation codes and parameters for
 programmatic handling rather than parsing display strings.
@@ -189,7 +194,9 @@ programmatic handling rather than parsing display strings.
   grapheme clusters. Use byte length when the external contract is defined in
   bytes.
 - `Range<T>` uses partial ordering. Values that cannot be ordered, including
-  `NaN`, are rejected.
+  `NaN`, are rejected. Constructor checks endpoint ordering but cannot know
+  whether every generic `T` domain contains a value between them; `(1_i32, 2_i32)`
+  is an ordered open interval with no integer member.
 - `ItemCount` bounds use the platform's `usize`; architecture can affect the
   largest representable count.
 

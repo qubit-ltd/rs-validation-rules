@@ -113,6 +113,53 @@ fn test_typed_text_rules_cover_success_and_domain_errors() {
     );
 }
 
+/// Rejects typed length and count rules that would otherwise accept every
+/// value.
+#[test]
+fn test_length_and_item_count_rules_require_at_least_one_bound() {
+    assert_eq!(
+        CharLength::new(None, None).unwrap_err().kind(),
+        BindErrorKind::InvalidBounds
+    );
+    assert_eq!(
+        ByteLength::new(None, None).unwrap_err().kind(),
+        BindErrorKind::InvalidBounds
+    );
+    assert_eq!(
+        ItemCount::new(None, None).unwrap_err().kind(),
+        BindErrorKind::InvalidBounds
+    );
+
+    assert!(CharLength::new(Some(0), None).is_ok());
+    assert!(ByteLength::new(Some(0), None).is_ok());
+    assert!(ItemCount::new(Some(0), None).is_ok());
+}
+
+/// Rejects empty dynamic bounds while preserving zero as a valid bound.
+#[test]
+fn test_registered_length_and_item_count_rules_require_bounds() {
+    let registry = create_test_registry();
+    for (id, input_type) in [
+        (TEXT_CHAR_LENGTH, InputType::Text),
+        (TEXT_BYTE_LENGTH, InputType::Text),
+        (COLLECTION_ITEM_COUNT, InputType::of::<usize>()),
+    ] {
+        let error = match registry.bind(id, input_type, &[], &[]) {
+            Ok(_) => panic!("{id} must reject missing bounds"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), BindErrorKind::InvalidBounds, "{id}");
+    }
+
+    let zero = [NamedValidationArgument::new("min", ValidationArgument::Unsigned(0))];
+    assert!(registry.bind(TEXT_CHAR_LENGTH, InputType::Text, &zero, &[]).is_ok());
+    assert!(
+        registry
+            .bind(COLLECTION_ITEM_COUNT, InputType::of::<usize>(), &zero, &[])
+            .is_ok()
+    );
+}
+
 #[test]
 fn test_character_sets_enforce_each_declared_profile() {
     let cases = [

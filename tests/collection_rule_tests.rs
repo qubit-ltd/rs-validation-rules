@@ -47,6 +47,19 @@ fn test_range_rejects_nan_single_endpoints() {
     }
 }
 
+/// Shows that ordered open endpoints can contain no value for a discrete type.
+#[test]
+fn test_discrete_open_interval_can_be_empty() {
+    let range = Range::new(Bound::Excluded(1_i32), Bound::Excluded(2_i32))
+        .expect("ordered endpoints need not contain an integer");
+    for value in 0..=3 {
+        assert_eq!(range.validate(&value, &()), Err(RangeError::OutOfRange));
+    }
+    let error = Range::new(Bound::Excluded(1_i32), Bound::Included(1_i32))
+        .expect_err("equal endpoints with exclusion are directly contradictory");
+    assert_eq!(error.kind(), BindErrorKind::InvalidBounds);
+}
+
 /// Uses the full platform count width for registry parameters and violations.
 #[cfg(target_pointer_width = "64")]
 #[test]

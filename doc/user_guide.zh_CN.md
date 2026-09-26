@@ -128,7 +128,8 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 | `china-identity` | 增加类型化规则 `identity::ChinaIdentity18Structure` |
 
 `Range<T>` 只作为类型化规则提供。中国大陆身份证规则也不会加入动态注册项。
-应用只需开启实际使用的 feature。
+应用只需开启实际使用的 feature。`rs-model-metadata` 使用
+`registrations()` 建立局部注册表，该路径不需要启用 `inventory`。
 
 ### 其他规则的校验范围
 
@@ -139,13 +140,16 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 - `EmailAscii` 检查 ASCII 邮箱的格式轮廓和长度，不确认邮箱是否存在或能否收信。
 - `Uri` 检查 RFC 3986 绝对 URI 语法，也接受 `mailto:`、`urn:` 等非 Web scheme。
 - `ItemCount` 使用 `usize` 表示上下界；`Range<T>` 可为可部分排序的值配置包含、
-  排除或无界端点。
+  排除或无界端点；端点有序不代表离散类型的区间内一定有值。
+- `CharLength`、`ByteLength` 和 `ItemCount` 至少要配置一个边界；绑定时 `min`、`max`
+  都缺省会返回 `InvalidBounds`。
 
 ## 错误与诊断
 
 类型化规则返回领域错误，例如 `TextRuleError::Uri`、
 `TextLengthError::TooShort` 或 `RangeError::Unordered`。带可配置边界的构造函数在
-边界无效时返回 `qubit_validator::BindError`。
+边界缺失或无效时返回 `qubit_validator::BindError`。长度与数量规则缺少两个边界时
+返回 `BindErrorKind::InvalidBounds`；`min` 大于 `max` 时返回 `ParameterOutOfRange`。
 
 注册表会在执行前检查规则 ID、输入类型、参数、依赖和 feature 是否可用。例如，
 `min` 大于 `max` 时无法绑定。规则执行后，未通过的值由
@@ -169,7 +173,8 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   和目标地址。
 - 字符长度按 Unicode 标量值计算，不等于用户感知的字素簇数量。外部协议按字节
   定义长度时，应使用字节长度规则。
-- `Range<T>` 使用部分排序；无法排序的值（包括 `NaN`）会被拒绝。
+- `Range<T>` 使用部分排序；无法排序的值（包括 `NaN`）会被拒绝。构造时检查端点关系，
+  无法保证任意离散类型的有序开区间中存在值，例如开整数区间 `(1_i32, 2_i32)`。
 - `ItemCount` 的边界类型为平台相关的 `usize`，不同架构可表示的最大数量可能不同。
 
 ## 延伸阅读

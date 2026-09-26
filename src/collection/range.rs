@@ -15,10 +15,12 @@ use qubit_validator::Validator;
 
 use super::range_error::RangeError;
 
-/// Checks inclusive or exclusive bounds for partially ordered values.
+/// Checks endpoint bounds for partially ordered values.
 ///
 /// Unordered values such as `NaN` fail validation, including when both bounds
-/// are unbounded.
+/// are unbounded. Constructor validation checks endpoint ordering; for a
+/// discrete type, an ordered interval can still contain no values, as with the
+/// open integer interval `(1, 2)`.
 ///
 /// # Type Parameters
 /// - `T`: `PartialOrd` value type compared with the range endpoints.
@@ -31,7 +33,7 @@ use super::range_error::RangeError;
 /// use qubit_validator::Validator;
 ///
 /// let rule = Range::new(Bound::Excluded(1), Bound::Included(4))
-///     .expect("ordered non-empty bounds");
+///     .expect("ordered bounds");
 /// assert!(rule.validate(&2, &()).is_ok());
 /// assert!(rule.validate(&1, &()).is_err());
 /// ```
@@ -51,11 +53,16 @@ impl<T: PartialOrd> Range<T> {
     /// - `upper`: Inclusive, exclusive, or unbounded upper endpoint.
     ///
     /// # Returns
-    /// A rule whose endpoints are ordered and describe a non-empty range.
+    /// A rule whose bounded endpoints are ordered and have no directly
+    /// contradictory equality boundary. This does not guarantee that the
+    /// range contains a value for every `T`.
     ///
     /// # Errors
-    /// Returns `InvalidBounds` for reversed, empty, or unordered bounds,
-    /// including an endpoint that cannot be compared with itself.
+    /// Returns `InvalidBounds` for reversed endpoints, equal endpoints when at
+    /// least one side excludes equality, or unordered endpoints, including an
+    /// endpoint that cannot be compared with itself. It does not reject an
+    /// ordered open interval that happens to contain no values of a discrete
+    /// type.
     pub fn new(lower: Bound<T>, upper: Bound<T>) -> Result<Self, BindError> {
         let unordered_bound = [&lower, &upper].into_iter().any(|bound| match bound {
             Bound::Included(value) | Bound::Excluded(value) => value.partial_cmp(value).is_none(),

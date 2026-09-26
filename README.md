@@ -74,13 +74,13 @@ application must still decide which URI schemes and destinations it permits.
 
 | Rule | What it checks |
 | --- | --- |
-| `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. Its configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
-| `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. Its configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
+| `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. At least one of `min` or `max` is required. Configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
+| `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. At least one of `min` or `max` is required. Configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
 | `text::EmailAscii` | An ASCII email shape and length profile; it does not establish mailbox existence or delivery. |
 | `text::AllowedChars` | Checks the selected character profile. `PrintableUnicode` allows Unicode letters, marks, numbers, punctuation, symbols, and space separators; it rejects control, format, private-use, unassigned, line-separator, and paragraph-separator characters. |
 | `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
-| `collection::ItemCount` | Inclusive item-count bounds expressed as `usize`; the largest accepted bound depends on the target architecture. |
-| `collection::Range<T>` | Inclusive or exclusive bounds for comparable values; unordered values such as `NaN` are rejected. |
+| `collection::ItemCount` | At least one inclusive item-count bound expressed as `usize` is required; the largest accepted bound depends on the target architecture. |
+| `collection::Range<T>` | Checks ordered inclusive or exclusive endpoints for comparable values; unordered values such as `NaN` are rejected. Ordered endpoints do not guarantee that a discrete type has a value inside, for example the open integer interval `(1, 2)`. |
 | `identity::ChinaIdentity18Structure` | With `china-identity`, length, body digits, calendar birth date, and checksum of an 18-character mainland China identity number. It does not establish a valid or assigned region code, issuance, or the holder's identity. |
 
 Other built-in rules cover blank text, allowed characters, text dependencies,
@@ -96,6 +96,9 @@ registry should have an explicit lifetime and contents. The `inventory`
 feature enables process-wide static discovery through
 `ValidatorRegistry::global()` and `register_validator!` for applications that
 choose global registration.
+
+When binding `CharLength`, `ByteLength`, or `ItemCount`, supply at least one
+bound. Binding without `min` and `max` returns `BindErrorKind::InvalidBounds`.
 
 The `ids` module exposes constants such as `ids::TEXT_URI` for stable built-in
 rule identifiers. Use these constants when referring to a built-in rule from
