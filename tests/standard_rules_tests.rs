@@ -143,7 +143,7 @@ fn test_registered_length_and_item_count_rules_require_bounds() {
         (TEXT_BYTE_LENGTH, InputType::Text),
         (COLLECTION_ITEM_COUNT, InputType::of::<usize>()),
     ] {
-        let error = match registry.bind(id, input_type, &[], &[]) {
+        let error = match registry.bind(id, input_type, &[]) {
             Ok(_) => panic!("{id} must reject missing bounds"),
             Err(error) => error,
         };
@@ -151,10 +151,10 @@ fn test_registered_length_and_item_count_rules_require_bounds() {
     }
 
     let zero = [NamedValidationArgument::new("min", ValidationArgument::Unsigned(0))];
-    assert!(registry.bind(TEXT_CHAR_LENGTH, InputType::Text, &zero, &[]).is_ok());
+    assert!(registry.bind(TEXT_CHAR_LENGTH, InputType::Text, &zero).is_ok());
     assert!(
         registry
-            .bind(COLLECTION_ITEM_COUNT, InputType::of::<usize>(), &zero, &[])
+            .bind(COLLECTION_ITEM_COUNT, InputType::of::<usize>(), &zero)
             .is_ok()
     );
 }
