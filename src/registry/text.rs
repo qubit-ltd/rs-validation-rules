@@ -19,7 +19,6 @@ use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedOutcome;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
-use qubit_validator::ValidationValue;
 use qubit_validator::Validator;
 use qubit_validator::ValidatorDescriptor;
 use qubit_validator::ValidatorId;
@@ -29,6 +28,7 @@ use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
 use qubit_validator::ViolationParam;
 use qubit_validator::prepare_text_validator;
+use qubit_validator::prepare_text_with_context;
 #[cfg(feature = "inventory")]
 use qubit_validator::register_validator;
 
@@ -181,23 +181,7 @@ fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepare
 /// Returns a bind error when an argument is supplied.
 fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(Arc::new(MatchesDependencyAdapter))
-}
-
-/// Preserves the distinction between a domain mismatch and an invalid context.
-struct MatchesDependencyAdapter;
-
-impl PreparedValidator for MatchesDependencyAdapter {
-    /// Validates text with slot zero, returning a contract error if it is
-    /// unreadable.
-    fn validate(
-        &self,
-        value: ValidationValue<'_>,
-        context: &qubit_validator::BoundValidationContext<'_>,
-    ) -> Result<PreparedOutcome, ExecutionError> {
-        let text = value
-            .as_text()
-            .ok_or_else(|| ExecutionError::new(ExecutionErrorKind::InputTypeMismatch))?;
+    Ok(prepare_text_with_context(|text, context| {
         match MatchesDependency.validate(text, context) {
             Ok(()) => Ok(PreparedOutcome::valid()),
             Err(MatchesDependencyError::Mismatch) => Ok(PreparedOutcome::Invalid(vec![ViolationDraft::new(
@@ -207,7 +191,7 @@ impl PreparedValidator for MatchesDependencyAdapter {
                 Err(ExecutionError::new(ExecutionErrorKind::AdapterContractViolation))
             }
         }
-    }
+    }))
 }
 /// Binds a mainland China mobile-number structure rule.
 ///
