@@ -127,6 +127,8 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 | `inventory` | 支持内置规则的进程级注册表发现 |
 | `regex` | 增加 `regex_rule::RegexMatch` 及其动态注册项 |
 | `china-identity` | 增加类型化规则 `identity::ChinaIdentity18Structure` |
+| `decimal` | 增加类型化 `decimal::DecimalValue` 和面向 `BigDecimal` 的动态注册项 `ids::DECIMAL_VALUE` |
+| `time` | 增加类型化 `time::TimePrecision` 和面向 chrono 时间值的动态注册项 `ids::TIME_PRECISION` |
 
 `Range<T>` 只作为类型化规则提供。中国大陆身份证规则也不会加入动态注册项。
 应用只需开启实际使用的 feature。`rs-model-metadata` 使用
@@ -144,6 +146,30 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   排除或无界端点；端点有序不代表离散类型的区间内一定有值。
 - `CharLength`、`ByteLength` 和 `ItemCount` 至少要配置一个边界；绑定时 `min`、`max`
   都缺省会返回 `InvalidBounds`。
+- `UniqueItems::first_duplicate` 用 `PartialEq` 比较切片元素，返回第一对重复元素的
+  `(first_index, second_index)`，不会展示元素值。
+- `DecimalValue::new(precision, scale, min, max)` 校验 `BigDecimal`。先规范化数值表示：
+  `1.2300` 符合 scale 2，`1.234` 不符合；零按一位有效数字计算。依次检查 scale、precision、
+  range；上下界可包含或排除端点。规则不会替调用方舍入。
+- `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
+  `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
+  不舍入，也不调整日期。
+- 注册 ID `qubit.rules.text.email_ascii` 保持不变。模型声明要把 `format = email` 改为
+  `format = email_ascii`，Rust 枚举用 `TextFormat::EmailAscii` 取代 `TextFormat::Email`。
+
+### 模型元数据的执行边界
+
+`qubit-model-metadata` 通过生成的 `map_len` 适配器，把外层 `HashMap` 或 `BTreeMap`
+的 entry 数量交给已注册的 `ItemCount` 规则。外层 `#[sequence(unique_items)]` 则对受支持的
+`Vec<T>` 或数组使用借用切片 getter 和元素 `PartialEq` 适配器，不提供通用动态注册项。
+缺少适配器或具体类型不符会使计划构建失败。重复元素在较后的索引处产生一条违规，参数中包含
+`first_index`；Map 数量违规使用字段路径。
+
+模型执行的 `max_nodes` 预算统计实际读取和规则调用；`max_comparisons` 统计每次去重成对比较
+及 selector 元素规则调用，读取元素也消耗节点。每项工作开始前检查预算；超限返回
+`TraversalLimit` 和部分报告。去重最坏需要 O(n²) 次比较。这些预算属于模型执行，
+不作用于直接调用的类型化规则。该后端仍不支持 selector 内的标准约束、Map key/value 遍历
+及未知集合形状。构建计划前请查阅 metadata 的[执行矩阵](../../rs-model-metadata/doc/user_guide.zh_CN.md#限制执行范围与构建拒绝)。
 
 ## 错误与诊断
 
@@ -151,6 +177,14 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 `TextLengthError::TooShort` 或 `RangeError::Unordered`。带可配置边界的构造函数在
 边界缺失或无效时返回 `qubit_validator::BindError`。长度与数量规则缺少两个边界时
 返回 `BindErrorKind::InvalidBounds`；`min` 大于 `max` 时返回 `ParameterOutOfRange`。
+
+直接调用 `MatchesDependency` 时，第零个依赖缺失或不是文本返回
+`MatchesDependencyError::MissingDependency`；文本不相等返回 `Mismatch`。注册规则只在
+确实不相等时产生 `text.dependency_mismatch`，缺失依赖属于执行错误。错误文本均不展示输入值。
+Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`decimal.range`、
+`time.precision`。Decimal 绑定要求 `scale`，可选 `precision`、规范十进制字符串 `min`/`max`
+及 `min_inclusive`/`max_inclusive`（默认均为 true）。Time 绑定要求
+`precision = second|millisecond|microsecond|nanosecond`。未知或越界参数会在绑定阶段失败。
 
 注册表会在执行前检查规则 ID、输入类型、参数、依赖和 feature 是否可用。例如，
 `min` 大于 `max` 时无法绑定。规则执行后，未通过的值由

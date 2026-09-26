@@ -75,11 +75,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `text::Uri` | 检查 RFC 3986 绝对 URI 的通用语法，接受 `mailto:`、`urn:` 等 scheme；不确认 scheme 是否适合应用、主机是否存在或地址是否可达。 |
 | `collection::ItemCount` | 至少提供一个包含端点的数量边界，边界使用 `usize`；可接受的最大值随目标架构而变。 |
 | `collection::Range<T>` | 对可比较的值检查端点顺序及包含或排除关系；`NaN` 等无法排序的值会被拒绝。端点有序不保证离散类型中存在区间成员，例如开整数区间 `(1, 2)`。 |
+| `collection::UniqueItems` | 使用 `PartialEq` 找到切片中第一对重复元素；模型执行另需元素相等性适配器和比较预算。 |
+| `decimal::DecimalValue` | 启用 `decimal` 后，检查规范化 `BigDecimal` 的小数位数、可选有效数字位数和精确区间端点；不会对输入舍入。 |
+| `time::TimePrecision` | 启用 `time` 后，对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 检查精确的秒、毫秒、微秒或纳秒粒度，不做舍入。 |
 | `identity::ChinaIdentity18Structure` | 启用 `china-identity` 后，检查中国大陆 18 位身份证号码的长度、主体数字、出生日期及校验位；不确认地区码有效或已分配、号码已签发，也不核实持有人身份。 |
 
 内置规则还覆盖非空白文本、允许的字符、文本依赖、标准形式 UUID 文本、
 中国大陆手机号结构，以及可选的正则表达式。`Range<T>` 与
 `ChinaIdentity18Structure` 是类型化规则；后者有意不加入内置动态注册项。
+
+`qubit-model-metadata` 执行声明时，外层 Map entry 数量通过生成的长度适配器复用
+`ItemCount`；外层 sequence `unique_items` 使用生成的元素相等性适配器，并非通用注册规则。
+模型计划在构建阶段检查适配器和具体类型。`max_nodes` 限制读取与规则调用，
+`max_comparisons` 限制序列元素成对比较。该后端仍不执行 selector 内的标准约束，
+也不遍历 Map key/value。准确范围见 metadata 的[执行矩阵](../rs-model-metadata/doc/user_guide.zh_CN.md#限制执行范围与构建拒绝)。
 
 ## 注册方式与功能开关
 
@@ -100,6 +109,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `inventory` | 将内置动态规则纳入全局自动发现。 |
 | `regex` | 增加 `regex_rule::RegexMatch` 及其动态注册项。 |
 | `china-identity` | 增加类型化规则 `identity::ChinaIdentity18Structure`，不将它动态注册。 |
+| `decimal` | 增加类型化 `decimal::DecimalValue` 及面向 `BigDecimal` 的 `ids::DECIMAL_VALUE` 注册项。 |
+| `time` | 增加类型化 `time::TimePrecision` 及面向三种 chrono 时间类型的 `ids::TIME_PRECISION` 注册项。 |
+
+`text::MatchesDependency` 用 `MatchesDependencyError::MissingDependency` 表示第零个依赖缺失或不是文本，
+用 `Mismatch` 表示两段文本不相等。注册表将真正的不相等报告为 `text.dependency_mismatch`，
+缺失依赖则属于执行错误。动态 ID `qubit.rules.text.email_ascii` 不变；模型声明应改用
+`email_ascii`，Rust 枚举应改用 `TextFormat::EmailAscii`。
 
 ## 延伸阅读
 

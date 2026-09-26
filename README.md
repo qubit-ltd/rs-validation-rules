@@ -81,12 +81,24 @@ application must still decide which URI schemes and destinations it permits.
 | `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
 | `collection::ItemCount` | At least one inclusive item-count bound expressed as `usize` is required; the largest accepted bound depends on the target architecture. |
 | `collection::Range<T>` | Checks ordered inclusive or exclusive endpoints for comparable values; unordered values such as `NaN` are rejected. Ordered endpoints do not guarantee that a discrete type has a value inside, for example the open integer interval `(1, 2)`. |
+| `collection::UniqueItems` | Finds the first duplicate pair in a slice using `PartialEq`; model execution separately requires an element equality adapter and a comparison budget. |
+| `decimal::DecimalValue` | With `decimal`, checks normalized `BigDecimal` scale, optional significant-digit precision, and exact inclusive or exclusive bounds. It never rounds the input. |
+| `time::TimePrecision` | With `time`, checks exact second, millisecond, microsecond, or nanosecond resolution for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`, without rounding. |
 | `identity::ChinaIdentity18Structure` | With `china-identity`, length, body digits, calendar birth date, and checksum of an 18-character mainland China identity number. It does not establish a valid or assigned region code, issuance, or the holder's identity. |
 
 Other built-in rules cover blank text, allowed characters, text dependencies,
 canonical UUID text, mainland China mobile-number structure, and optionally
 regular expressions. `Range<T>` and `ChinaIdentity18Structure` are typed rules;
 the latter is deliberately absent from the built-in dynamic registrations.
+
+When `qubit-model-metadata` executes declarations, outer Map entry counts reuse
+`ItemCount` through a generated length adapter; outer sequence `unique_items`
+uses a generated element equality adapter rather than a generic registry rule.
+The model plan checks adapters and concrete types at build time. Its `max_nodes`
+budget covers reads and rule calls, while `max_comparisons` bounds sequence
+pair checks. Standard constraints inside selectors and Map key/value traversal
+remain unsupported by that backend. See the metadata [execution support
+matrix](../rs-model-metadata/doc/user_guide.md#limitations-execution-support-and-explicit-refusal).
 
 ## Registration and Features
 
@@ -110,6 +122,15 @@ application code.
 | `inventory` | Registers the built-in dynamic rules for global discovery. |
 | `regex` | Adds `regex_rule::RegexMatch` and its dynamic registration. |
 | `china-identity` | Adds the typed `identity::ChinaIdentity18Structure` rule; it is not dynamically registered. |
+| `decimal` | Adds the typed `decimal::DecimalValue` rule and `ids::DECIMAL_VALUE` registration for `BigDecimal`. |
+| `time` | Adds the typed `time::TimePrecision` rule and `ids::TIME_PRECISION` registration for three chrono temporal types. |
+
+`text::MatchesDependency` returns `MatchesDependencyError::MissingDependency`
+when dependency slot zero is missing or is not text, and `Mismatch` when two
+texts differ. The registry reports a genuine mismatch as
+`text.dependency_mismatch`; a missing dependency is an execution error. The
+`qubit.rules.text.email_ascii` ID is unchanged; model declarations now spell
+the format `email_ascii` and use `TextFormat::EmailAscii`.
 
 ## Learn More
 

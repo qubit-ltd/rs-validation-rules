@@ -139,6 +139,8 @@ Optional features add:
 | `inventory` | Built-in rules to process-wide registry discovery |
 | `regex` | `regex_rule::RegexMatch` and its dynamic registration |
 | `china-identity` | Typed `identity::ChinaIdentity18Structure` |
+| `decimal` | Typed `decimal::DecimalValue` and dynamic `ids::DECIMAL_VALUE` for `BigDecimal` |
+| `time` | Typed `time::TimePrecision` and dynamic `ids::TIME_PRECISION` for chrono temporal values |
 
 `Range<T>` is a typed rule only. The China identity rule is also intentionally
 not included in dynamic registrations. Enable only the features the application
@@ -161,12 +163,56 @@ does not need the `inventory` feature for that path.
 - `ItemCount` uses `usize` bounds. `Range<T>` checks endpoint order and supports
   included, excluded, and unbounded endpoints for partially ordered values;
   endpoint ordering does not prove that a discrete type has an interior value.
+- `UniqueItems::first_duplicate` compares slice elements with `PartialEq` and
+  returns the first `(first_index, second_index)` pair. It does not display values.
+- `DecimalValue::new(precision, scale, min, max)` validates `BigDecimal`. It
+  normalizes numerical representation first: `1.2300` fits scale 2, but `1.234`
+  does not; zero has one significant digit. Checks run in scale, precision, range
+  order. Bounds can be inclusive or exclusive. A rule never rounds its input.
+- `TimePrecision::new` supports `Second`, `Millisecond`, `Microsecond`, and
+  `Nanosecond` for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`. The
+  nanosecond component must divide evenly by the selected unit; no rounding or
+  date adjustment occurs.
+- The `qubit.rules.text.email_ascii` registration ID remains stable. In model
+  declarations, replace `format = email` with `format = email_ascii` and
+  `TextFormat::Email` with `TextFormat::EmailAscii`.
+
+### Model metadata execution boundary
+
+`qubit-model-metadata` binds the registered `ItemCount` rule to an outer
+`HashMap` or `BTreeMap` entry count through a generated `map_len` adapter.
+Outer `#[sequence(unique_items)]` instead uses an element `PartialEq` adapter
+for a supported `Vec<T>` or array with a borrowed-slice getter; it is not a
+general-purpose dynamic registration. Missing adapters and incompatible types
+fail plan construction. A duplicate produces one violation at the later element
+index and includes `first_index`; Map count violations use the field path.
+
+The model plan's `max_nodes` budget counts actual reads and rule invocations.
+`max_comparisons` counts each uniqueness pair comparison and selector element
+rule call; element reads also cost nodes. The limits are checked before work,
+and exhaustion returns `TraversalLimit` with a partial report. Uniqueness can
+require O(n²) comparisons. These budgets belong to model execution, not direct
+typed-rule calls. Standard constraints inside selectors, Map key/value
+traversal, and unknown collection shapes remain unsupported. Consult the
+metadata [execution support matrix](../../rs-model-metadata/doc/user_guide.md#limitations-execution-support-and-explicit-refusal)
+before building a plan.
 
 ## Errors and Diagnostics
 
 Typed rules return domain-specific errors such as `TextRuleError::Uri`,
 `TextLengthError::TooShort`, or `RangeError::Unordered`. Constructors with
 configurable bounds return `qubit_validator::BindError` when bounds are invalid.
+
+Direct `MatchesDependency` calls return `MatchesDependencyError::MissingDependency`
+when slot zero is absent or not text, and `Mismatch` when its text differs from
+the input. The registered rule emits `text.dependency_mismatch` only for unequal
+texts; a missing dependency is an execution error. Neither error prints either
+input value. Decimal and time rules report `decimal.scale`,
+`decimal.precision`, `decimal.range`, or `time.precision` without the input value.
+Decimal binding requires `scale`, accepts optional `precision`, canonical string
+`min`/`max`, and optional `min_inclusive`/`max_inclusive` (both default true).
+Time binding requires `precision = second|millisecond|microsecond|nanosecond`.
+Unknown or out-of-range arguments fail at binding.
 
 Registry binding checks the ID, input type, arguments, dependencies, and
 feature availability before a bound rule can execute. Length and item-count
