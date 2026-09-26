@@ -83,6 +83,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 内置规则还覆盖非空白文本、允许的字符、文本依赖、标准形式 UUID 文本、
 中国大陆手机号结构，以及可选的正则表达式。`Range<T>` 与
 `ChinaIdentity18Structure` 是类型化规则；后者有意不加入内置动态注册项。
+启用 `regex` 后，`RegexMatch` 将模式正文限制在 4,096 个 UTF-8 字节以内，编译程序的
+近似大小上限设为 8 MiB，单条规则的惰性 DFA 缓存限制为 2 MiB。模式或编译程序超限时，
+构造和绑定返回 `ParameterOutOfRange(pattern)`；语法错误返回 `InvalidPattern`。
+应用仍需在输入入口限制待匹配文本的长度。
 
 `qubit-model-metadata` 执行声明时，外层 Map entry 数量通过生成的长度适配器复用
 `ItemCount`；外层 sequence `unique_items` 使用生成的元素相等性适配器，并非通用注册规则。

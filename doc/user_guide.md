@@ -177,6 +177,10 @@ does not need the `inventory` feature for that path.
   `Nanosecond` for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`. The
   nanosecond component must divide evenly by the selected unit; no rounding or
   date adjustment occurs.
+- `RegexMatch::new` and the `ids::TEXT_REGEX` registration accept a pattern body
+  of at most 4,096 UTF-8 bytes. The approximate compiled-program size limit is 8 MiB and
+  the lazy DFA cache to 2 MiB per rule. The rule does not impose a matching
+  input length limit; applications must enforce one at their input boundary.
 - The `qubit.rules.text.email_ascii` registration ID remains stable. In model
   declarations, replace `format = email` with `format = email_ascii` and
   `TextFormat::Email` with `TextFormat::EmailAscii`.
@@ -217,6 +221,9 @@ Decimal binding requires `scale`, accepts optional `precision`, canonical string
 `min`/`max`, and optional `min_inclusive`/`max_inclusive` (both default true).
 Time binding requires `precision = second|millisecond|microsecond|nanosecond`.
 Unknown or out-of-range arguments fail at binding.
+An oversized regex pattern or compiled program returns
+`BindErrorKind::ParameterOutOfRange` with parameter `pattern` during construction
+or binding. Invalid regex syntax returns `BindErrorKind::InvalidPattern`.
 
 Registry binding checks the ID, input type, arguments, dependencies, and
 feature availability before a bound rule can execute. Length and item-count

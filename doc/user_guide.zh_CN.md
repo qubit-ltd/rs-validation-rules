@@ -156,6 +156,9 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 - `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
   不舍入，也不调整日期。
+- `RegexMatch::new` 和 `ids::TEXT_REGEX` 注册项接受的模式正文最多为 4,096 个 UTF-8
+  字节。编译程序的近似大小上限为 8 MiB，单条规则的惰性 DFA 缓存上限为 2 MiB。规则本身不限制
+  待匹配文本长度；应用应在输入入口设置长度上限。
 - 注册 ID `qubit.rules.text.email_ascii` 保持不变。模型声明要把 `format = email` 改为
   `format = email_ascii`，Rust 枚举用 `TextFormat::EmailAscii` 取代 `TextFormat::Email`。
 
@@ -187,6 +190,9 @@ Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`
 `time.precision`。Decimal 绑定要求 `scale`，可选 `precision`、规范十进制字符串 `min`/`max`
 及 `min_inclusive`/`max_inclusive`（默认均为 true）。Time 绑定要求
 `precision = second|millisecond|microsecond|nanosecond`。未知或越界参数会在绑定阶段失败。
+正则模式正文超长或编译程序超限时，类型化构造和注册表绑定均返回
+`BindErrorKind::ParameterOutOfRange`，参数名为 `pattern`；语法错误返回
+`BindErrorKind::InvalidPattern`。
 
 注册表会在执行前检查规则 ID、输入类型、参数、依赖和 feature 是否可用。例如，
 `min` 大于 `max` 时无法绑定。规则执行后，未通过的值由
@@ -198,6 +204,7 @@ Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`
 | 现象 | 检查方向 |
 | --- | --- |
 | 注册表绑定失败 | 核对规则 ID、`InputType`、参数名称和类型，以及所需 feature 是否启用。 |
+| 正则模式无法构造 | 检查 `pattern` 的 UTF-8 字节数及编译上限；语法错误与资源超限使用不同错误种类。 |
 | `CharLength` 拒绝文本 | 检查 Unicode 标量值数量；一个可见字符可能由多个标量值组成。 |
 | `ByteLength` 拒绝文本 | 检查 UTF-8 字节数；非 ASCII 文本中的一个标量值通常占多个字节。 |
 | URI 通过校验但不适合作为回调地址 | 语法校验后，还需由应用限制 scheme、主机和目标地址。 |
