@@ -10,6 +10,7 @@ use std::ops::Bound;
 
 use qubit_validation_rules::collection::Range;
 use qubit_validation_rules::collection::RangeError;
+use qubit_validation_rules::collection::UniqueItems;
 use qubit_validation_rules::registrations;
 use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
@@ -23,6 +24,15 @@ use qubit_validator::ValidatorRegistry;
 use qubit_validator::ViolationParam;
 
 const ITEM_COUNT_ID: &str = "qubit.rules.collection.item_count";
+
+#[test]
+fn test_unique_items_finds_first_partial_eq_duplicate() {
+    assert_eq!(UniqueItems::first_duplicate(&[1, 2, 1]), Some((0, 2)));
+    assert_eq!(UniqueItems::first_duplicate(&[1, 2, 2, 1]), Some((1, 2)));
+    assert_eq!(UniqueItems::first_duplicate::<i32>(&[]), None);
+    assert_eq!(UniqueItems::first_duplicate(&[1]), None);
+    assert_eq!(UniqueItems::first_duplicate(&[f64::NAN, f64::NAN]), None);
+}
 
 /// Rejects values that cannot be ordered even when neither endpoint is bounded.
 #[test]

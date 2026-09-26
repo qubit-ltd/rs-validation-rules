@@ -12,8 +12,10 @@ mod item_count;
 mod item_count_error;
 mod range;
 mod range_error;
+mod unique_items;
 
 pub use item_count::ItemCount;
 pub use item_count_error::ItemCountError;
 pub use range::Range;
 pub use range_error::RangeError;
+pub use unique_items::UniqueItems;
