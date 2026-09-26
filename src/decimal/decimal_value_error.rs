@@ -12,7 +12,7 @@ pub enum DecimalValueError {
     /// The normalized value has too many fractional places.
     #[error("decimal scale exceeded")]
     Scale,
-    /// The normalized value has too many significant digits.
+    /// The normalized value exceeds the declared decimal precision capacity.
     #[error("decimal precision exceeded")]
     Precision,
     /// The value falls outside its declared interval.

@@ -110,8 +110,18 @@ fn test_decimal_value_normalization_bounds_and_registration() {
         DecimalValue::new(Some(1), 0, None, None)
             .unwrap()
             .validate(&decimal("1e3"), &()),
-        Ok(())
+        Err(DecimalValueError::Precision)
     );
+    for (precision, scale, literal, expected) in [
+        (1, 0, "1000", Err(DecimalValueError::Precision)),
+        (3, 2, "12", Err(DecimalValueError::Precision)),
+        (3, 2, "1.2300", Ok(())),
+        (4, 2, "12.00", Ok(())),
+        (5, 5, "0.00001", Ok(())),
+    ] {
+        let rule = DecimalValue::new(Some(precision), scale, None, None).unwrap();
+        assert_eq!(rule.validate(&decimal(literal), &()), expected, "{literal}");
+    }
     assert_eq!(
         DecimalValue::new(
             Some(3),
@@ -157,7 +167,7 @@ fn test_decimal_value_normalization_bounds_and_registration() {
         .unwrap();
     assert_eq!(violation_code(outcome), "decimal.scale");
     let precision_args = [
-        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(3)),
         NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
     ];
     let bound = registry
@@ -168,6 +178,17 @@ fn test_decimal_value_normalization_bounds_and_registration() {
             bound
                 .validate(
                     ValidationValue::Typed(&decimal("12.3")),
+                    &BoundValidationContext::new(&[])
+                )
+                .unwrap()
+        ),
+        "decimal.precision"
+    );
+    assert_eq!(
+        violation_code(
+            bound
+                .validate(
+                    ValidationValue::Typed(&decimal("12")),
                     &BoundValidationContext::new(&[])
                 )
                 .unwrap()
@@ -209,6 +230,13 @@ fn test_decimal_value_normalization_bounds_and_registration() {
                 ValidationArgument::Unsigned(65_536),
             )],
             "scale",
+        ),
+        (
+            vec![
+                NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
+                NamedValidationArgument::new("precision", ValidationArgument::Unsigned(65_536)),
+            ],
+            "precision",
         ),
         (
             vec![
@@ -260,9 +288,9 @@ fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
 
     let value = BigDecimal::new(10.into(), i64::MIN);
     let one_digit = DecimalValue::new(Some(1), 0, None, None).unwrap();
-    assert_eq!(one_digit.validate(&value, &()), Ok(()));
+    assert_eq!(one_digit.validate(&value, &()), Err(DecimalValueError::Precision));
     let negative = BigDecimal::new((-10).into(), i64::MIN);
-    assert_eq!(one_digit.validate(&negative, &()), Ok(()));
+    assert_eq!(one_digit.validate(&negative, &()), Err(DecimalValueError::Precision));
     let two_digits = BigDecimal::new(11.into(), i64::MIN);
     assert_eq!(
         one_digit.validate(&two_digits, &()),
@@ -276,7 +304,7 @@ fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
     assert_eq!(one_digit.validate(&fractional_zero, &()), Ok(()));
 
     let bounded = DecimalValue::new(
-        Some(1),
+        None,
         0,
         Some(Bound::Included(BigDecimal::from(0))),
         Some(Bound::Included(value.clone())),
