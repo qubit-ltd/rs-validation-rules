@@ -7,7 +7,6 @@
 // =============================================================================
 
 use qubit_validator::BoundValidationContext;
-use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::ValidationOutcome;
 use qubit_validator::ValidationValue;
@@ -18,13 +17,11 @@ fn main() {
     let registry = ValidatorRegistry::try_global().expect("inventory registry");
     assert!(registry.get("qubit.rules.text.email_ascii").is_some());
     assert!(registry.get("qubit.rules.collection.item_count").is_some());
-    let dependencies = [DependencySpec::new("expected", InputType::Text, false)];
     let bound = registry
         .bind(
             "qubit.rules.text.matches_dependency",
             InputType::Text,
             &[],
-            &dependencies,
         )
         .expect("context-aware rule is inventory registered");
     let values = [ValidationValue::Text("expected-value")];

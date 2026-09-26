@@ -58,7 +58,7 @@ fn test_item_count_registry_accepts_bounds_above_u32_max() {
         ValidationArgument::Unsigned(large_bound as u128),
     )];
     let minimum_rule = registry
-        .bind(ITEM_COUNT_ID, InputType::of::<usize>(), &min_arguments, &[])
+        .bind(ITEM_COUNT_ID, InputType::of::<usize>(), &min_arguments)
         .expect("large minimum binds");
     assert_eq!(
         minimum_rule
@@ -87,7 +87,7 @@ fn test_item_count_registry_accepts_bounds_above_u32_max() {
         ValidationArgument::Unsigned(large_bound as u128),
     )];
     let maximum_rule = registry
-        .bind(ITEM_COUNT_ID, InputType::of::<usize>(), &max_arguments, &[])
+        .bind(ITEM_COUNT_ID, InputType::of::<usize>(), &max_arguments)
         .expect("large maximum binds");
     assert_eq!(
         maximum_rule
@@ -122,7 +122,7 @@ fn test_item_count_registry_rejects_bounds_above_usize_max() {
             ValidationArgument::Unsigned(usize::MAX as u128 + 1),
         )];
         let error = registry
-            .bind(ITEM_COUNT_ID, InputType::of::<usize>(), &arguments, &[])
+            .bind(ITEM_COUNT_ID, InputType::of::<usize>(), &arguments)
             .expect_err("out-of-range count bound must fail binding");
         assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
         assert_eq!(error.parameter(), Some(name));

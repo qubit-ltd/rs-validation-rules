@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Uri.validate(callback_uri, &())?;
 
     let registry = ValidatorRegistry::from_registrations(registrations())?;
-    let rule = registry.bind(ids::TEXT_URI, InputType::Text, &[], &[])?;
+    let rule = registry.bind(ids::TEXT_URI, InputType::Text, &[])?;
     let outcome = rule.validate(
         ValidationValue::Text(callback_uri),
         &BoundValidationContext::new(&[]),

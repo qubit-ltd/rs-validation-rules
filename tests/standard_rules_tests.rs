@@ -29,7 +29,6 @@ use qubit_validation_rules::text::UuidText;
 use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
 use qubit_validator::BoundValidator;
-use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
 use qubit_validator::ValidationArgument;
@@ -55,7 +54,7 @@ fn create_test_registry() -> ValidatorRegistry {
 
 fn bind_text_rule(registry: &ValidatorRegistry, id: &str, arguments: &[NamedValidationArgument<'_>]) -> BoundValidator {
     registry
-        .bind(id, InputType::Text, arguments, &[])
+        .bind(id, InputType::Text, arguments)
         .expect("text rule should bind")
 }
 
@@ -272,9 +271,8 @@ fn test_registered_rules_cover_preparation_and_mapping_paths() {
         "text.mobile"
     );
 
-    let dependencies = [DependencySpec::new("expected", InputType::Text, false)];
     let bound = registry
-        .bind(TEXT_MATCHES_DEPENDENCY, InputType::Text, &[], &dependencies)
+        .bind(TEXT_MATCHES_DEPENDENCY, InputType::Text, &[])
         .expect("dependency rule binds");
     let values = [ValidationValue::Text("expected")];
     let context = BoundValidationContext::new(&values);
@@ -295,7 +293,7 @@ fn test_registered_rules_cover_preparation_and_mapping_paths() {
 
     let count_args = [NamedValidationArgument::new("min", ValidationArgument::Unsigned(2))];
     let count_rule = registry
-        .bind(COLLECTION_ITEM_COUNT, InputType::of::<usize>(), &count_args, &[])
+        .bind(COLLECTION_ITEM_COUNT, InputType::of::<usize>(), &count_args)
         .expect("count rule binds");
     assert_eq!(
         count_rule
@@ -318,7 +316,7 @@ fn test_invalid_rule_parameters_are_rejected_during_binding() {
     )];
     assert_eq!(
         registry
-            .bind(TEXT_ALLOWED_CHARS, InputType::Text, &invalid_set, &[])
+            .bind(TEXT_ALLOWED_CHARS, InputType::Text, &invalid_set)
             .unwrap_err()
             .kind(),
         BindErrorKind::ParameterOutOfRange
@@ -327,7 +325,7 @@ fn test_invalid_rule_parameters_are_rejected_during_binding() {
     let unknown = [NamedValidationArgument::new("unused", ValidationArgument::Bool(true))];
     assert_eq!(
         registry
-            .bind(TEXT_NON_BLANK, InputType::Text, &unknown, &[])
+            .bind(TEXT_NON_BLANK, InputType::Text, &unknown)
             .unwrap_err()
             .kind(),
         BindErrorKind::UnknownParameter

@@ -78,7 +78,7 @@ use qubit_validator::ValidatorRegistry;
 
 fn validate_configured_uri(value: &str) -> Result<ValidationOutcome, Box<dyn std::error::Error>> {
     let registry = ValidatorRegistry::from_registrations(registrations())?;
-    let rule = registry.bind(ids::TEXT_URI, InputType::Text, &[], &[])?;
+    let rule = registry.bind(ids::TEXT_URI, InputType::Text, &[])?;
     Ok(rule.validate(
         ValidationValue::Text(value),
         &BoundValidationContext::new(&[]),
@@ -109,7 +109,7 @@ let arguments = [NamedValidationArgument::new(
     "min",
     ValidationArgument::Unsigned(2),
 )];
-let rule = registry.bind(ids::TEXT_CHAR_LENGTH, InputType::Text, &arguments, &[])?;
+let rule = registry.bind(ids::TEXT_CHAR_LENGTH, InputType::Text, &arguments)?;
 let outcome = rule.validate(
     ValidationValue::Text("éa"),
     &BoundValidationContext::new(&[]),

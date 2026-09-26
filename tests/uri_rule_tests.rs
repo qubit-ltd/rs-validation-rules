@@ -44,7 +44,7 @@ fn test_uri_rejects_invalid_syntax_and_relative_references() {
 fn test_registered_uri_rejects_invalid_percent_escape() {
     let registry = ValidatorRegistry::from_registrations(registrations()).expect("standard registrations are valid");
     let bound = registry
-        .bind("qubit.rules.text.uri", InputType::Text, &[], &[])
+        .bind("qubit.rules.text.uri", InputType::Text, &[])
         .expect("URI rule binds without arguments");
     let outcome = bound
         .validate(

@@ -30,7 +30,7 @@ fn bind_password_rule(minimum: u32) -> BoundValidator {
         ValidationArgument::Unsigned(u128::from(minimum)),
     )];
     registry
-        .bind(CHAR_LENGTH_ID, InputType::Text, &arguments, &[])
+        .bind(CHAR_LENGTH_ID, InputType::Text, &arguments)
         .expect("character-length rule binds")
 }
 
@@ -46,24 +46,27 @@ fn test_model_flow_keeps_prerequisite_at_its_original_absolute_path() {
     let confirmation_path = ValidationPath::root().with_field("user").with_field("confirmation");
     let mut report = ValidationReport::new();
 
-    assert!(
-        report
-            .record_outcome(0, password_path.clone(), outcome)
-            .expect("password result fits")
-    );
-    let evidence = report.violations()[0].clone();
-    let skipped = ValidationOutcome::failed_prerequisite(vec![evidence])
-        .expect("failed prerequisite includes its original violation");
+    let recorded = report
+        .record_outcome(0, password_path.clone(), outcome)
+        .expect("password result fits");
+    assert!(recorded.complete());
+    let failure_id = recorded.failure_ids()[0];
+    let skipped = ValidationOutcome::failed_prerequisite(vec![failure_id])
+        .expect("failed prerequisite references its original violation");
     assert!(
         report
             .record_outcome(1, confirmation_path.clone(), skipped)
             .expect("skip result fits")
+            .complete()
     );
 
     assert_eq!(report.violations()[0].path(), &password_path);
     assert_eq!(report.skipped()[0].path(), &confirmation_path);
-    assert_eq!(report.skipped()[0].prerequisites()[0].path(), &password_path);
-    assert_eq!(report.failure_count(), 2);
+    assert_eq!(
+        report.failure(report.skipped()[0].prerequisites()[0]).unwrap().path(),
+        &password_path
+    );
+    assert_eq!(report.failure_count(), 1);
     assert!(!report.is_valid());
     assert!(!format!("{report:?}").contains("private-value"));
 }
@@ -85,24 +88,25 @@ fn test_model_flow_marks_truncation_when_prerequisite_evidence_does_not_fit() {
     };
     let mut report = ValidationReport::with_limits(limits);
 
-    assert!(
-        report
-            .record_outcome(0, password_path, outcome)
-            .expect("first violation fits")
-    );
+    let recorded = report
+        .record_outcome(0, password_path, outcome)
+        .expect("first violation fits");
+    assert!(recorded.complete());
+    let failure_id = recorded.failure_ids()[0];
     assert!(
         report
             .record_outcome(1, optional_path, ValidationOutcome::missing_optional())
             .expect("optional skip fits")
+            .complete()
     );
-    let evidence = report.violations()[0].clone();
-    let failed_prerequisite = ValidationOutcome::failed_prerequisite(vec![evidence])
-        .expect("failed prerequisite includes its original violation");
+    let failed_prerequisite = ValidationOutcome::failed_prerequisite(vec![failure_id])
+        .expect("failed prerequisite references its original violation");
 
     assert!(
         !report
             .record_outcome(2, confirmation_path, failed_prerequisite)
             .expect("capacity exhaustion is a truncated result")
+            .complete()
     );
     assert_eq!(report.violations().len(), 1);
     assert_eq!(report.skipped().len(), 1);
