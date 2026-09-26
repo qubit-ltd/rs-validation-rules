@@ -9,9 +9,13 @@
 use qubit_validator::ValidatorRegistration;
 
 use super::collection;
+#[cfg(feature = "decimal")]
+use super::decimal;
 #[cfg(feature = "regex")]
 use super::regex;
 use super::text;
+#[cfg(feature = "time")]
+use super::time;
 
 /// Returns built-in rule registrations for a local validator registry.
 /// Feature-gated rules are included when their features are enabled.
@@ -34,5 +38,9 @@ pub fn registrations() -> Vec<ValidatorRegistration> {
     ];
     #[cfg(feature = "regex")]
     rules.push(regex::REG_REGEX);
+    #[cfg(feature = "decimal")]
+    rules.push(decimal::REG_DECIMAL);
+    #[cfg(feature = "time")]
+    rules.push(time::REG_TIME);
     rules
 }

@@ -28,6 +28,12 @@ pub const TEXT_URI: &str = "qubit.rules.text.uri";
 pub const TEXT_UUID: &str = "qubit.rules.text.uuid";
 /// Stable identifier for the collection item-count rule.
 pub const COLLECTION_ITEM_COUNT: &str = "qubit.rules.collection.item_count";
+/// Stable identifier for the exact decimal value rule.
+#[cfg(feature = "decimal")]
+pub const DECIMAL_VALUE: &str = "qubit.rules.decimal.value";
+/// Stable identifier for the temporal precision rule.
+#[cfg(feature = "time")]
+pub const TIME_PRECISION: &str = "qubit.rules.time.precision";
 /// Stable identifier for the full-string regular-expression rule.
 #[cfg(feature = "regex")]
 pub const TEXT_REGEX: &str = "qubit.rules.text.regex";

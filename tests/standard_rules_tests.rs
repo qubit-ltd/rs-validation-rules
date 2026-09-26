@@ -77,6 +77,344 @@ fn violation_code(outcome: ValidationOutcome) -> String {
     violations[0].code().as_str().to_owned()
 }
 
+#[cfg(feature = "decimal")]
+#[test]
+fn test_decimal_value_normalization_bounds_and_registration() {
+    use std::str::FromStr;
+
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::decimal::DecimalValue;
+    use qubit_validation_rules::decimal::DecimalValueError;
+    use qubit_validation_rules::ids;
+
+    let decimal = |value| BigDecimal::from_str(value).unwrap();
+    let rule = DecimalValue::new(
+        Some(3),
+        2,
+        Some(Bound::Included(decimal("-1.23"))),
+        Some(Bound::Excluded(decimal("1.23"))),
+    )
+    .unwrap();
+    assert_eq!(rule.validate(&decimal("1.2300"), &()), Err(DecimalValueError::Range));
+    assert_eq!(rule.validate(&decimal("-1.2300"), &()), Ok(()));
+    assert_eq!(rule.validate(&decimal("-1.2301"), &()), Err(DecimalValueError::Scale));
+    assert_eq!(rule.validate(&decimal("1.234"), &()), Err(DecimalValueError::Scale));
+    assert_eq!(rule.validate(&decimal("12.34"), &()), Err(DecimalValueError::Precision));
+    assert_eq!(
+        DecimalValue::new(Some(1), 0, None, None)
+            .unwrap()
+            .validate(&decimal("0.000"), &()),
+        Ok(())
+    );
+    assert_eq!(
+        DecimalValue::new(Some(1), 0, None, None)
+            .unwrap()
+            .validate(&decimal("1e3"), &()),
+        Ok(())
+    );
+    assert_eq!(
+        DecimalValue::new(
+            Some(3),
+            2,
+            Some(Bound::Included(decimal("1.2300"))),
+            Some(Bound::Included(decimal("2")))
+        )
+        .unwrap()
+        .validate(&decimal("1.23"), &()),
+        Ok(())
+    );
+    assert_eq!(
+        DecimalValue::new(Some(0), 0, None, None).unwrap_err().kind(),
+        BindErrorKind::ParameterOutOfRange
+    );
+    assert_eq!(
+        DecimalValue::new(Some(2), 3, None, None).unwrap_err().kind(),
+        BindErrorKind::ParameterOutOfRange
+    );
+    assert_eq!(
+        DecimalValue::new(
+            None,
+            2,
+            Some(Bound::Included(decimal("2"))),
+            Some(Bound::Included(decimal("1")))
+        )
+        .unwrap_err()
+        .kind(),
+        BindErrorKind::InvalidBounds
+    );
+    assert!(!format!("{:?}", rule.validate(&decimal("1.234"), &())).contains("1.234"));
+
+    let registry = create_test_registry();
+    let args = [NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2))];
+    let bound = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+        .unwrap();
+    let outcome = bound
+        .validate(
+            ValidationValue::Typed(&decimal("1.234")),
+            &BoundValidationContext::new(&[]),
+        )
+        .unwrap();
+    assert_eq!(violation_code(outcome), "decimal.scale");
+    let precision_args = [
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+    ];
+    let bound = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &precision_args)
+        .unwrap();
+    assert_eq!(
+        violation_code(
+            bound
+                .validate(
+                    ValidationValue::Typed(&decimal("12.3")),
+                    &BoundValidationContext::new(&[])
+                )
+                .unwrap()
+        ),
+        "decimal.precision"
+    );
+    let range_args = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("min", ValidationArgument::String("1.23")),
+        NamedValidationArgument::new("min_inclusive", ValidationArgument::Bool(false)),
+    ];
+    let bound = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &range_args)
+        .unwrap();
+    assert_eq!(
+        violation_code(
+            bound
+                .validate(
+                    ValidationValue::Typed(&decimal("1.2300")),
+                    &BoundValidationContext::new(&[])
+                )
+                .unwrap()
+        ),
+        "decimal.range"
+    );
+    let invalid = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("min", ValidationArgument::String("private-bad-bound")),
+    ];
+    let error = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &invalid)
+        .unwrap_err();
+    assert_eq!(error.parameter(), Some("min"));
+    assert!(!format!("{error:?} {error}").contains("private-bad-bound"));
+    for (args, parameter) in [
+        (
+            vec![NamedValidationArgument::new(
+                "scale",
+                ValidationArgument::Unsigned(65_536),
+            )],
+            "scale",
+        ),
+        (
+            vec![
+                NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
+                NamedValidationArgument::new("precision", ValidationArgument::Unsigned(0)),
+            ],
+            "precision",
+        ),
+        (
+            vec![
+                NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+                NamedValidationArgument::new("precision", ValidationArgument::Unsigned(1)),
+            ],
+            "scale",
+        ),
+    ] {
+        assert_eq!(
+            registry
+                .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+                .unwrap_err()
+                .parameter(),
+            Some(parameter)
+        );
+    }
+}
+
+#[cfg(feature = "decimal")]
+#[test]
+fn test_decimal_value_debug_redacts_endpoint_values() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::decimal::DecimalValue;
+
+    let min = "98765.4321".parse::<BigDecimal>().unwrap();
+    let max = "98766.4321".parse::<BigDecimal>().unwrap();
+    let rule = DecimalValue::new(None, 4, Some(Bound::Included(min)), Some(Bound::Excluded(max))).unwrap();
+    let debug = format!("{rule:?}");
+    assert!(!debug.contains("98765.4321"), "{debug}");
+    assert!(!debug.contains("98766.4321"), "{debug}");
+    assert!(!debug.contains("987654321"), "{debug}");
+    assert!(!debug.contains("987664321"), "{debug}");
+}
+
+#[cfg(feature = "decimal")]
+#[test]
+fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::decimal::DecimalValue;
+    use qubit_validation_rules::decimal::DecimalValueError;
+
+    let value = BigDecimal::new(10.into(), i64::MIN);
+    let one_digit = DecimalValue::new(Some(1), 0, None, None).unwrap();
+    assert_eq!(one_digit.validate(&value, &()), Ok(()));
+    let negative = BigDecimal::new((-10).into(), i64::MIN);
+    assert_eq!(one_digit.validate(&negative, &()), Ok(()));
+    let two_digits = BigDecimal::new(11.into(), i64::MIN);
+    assert_eq!(
+        one_digit.validate(&two_digits, &()),
+        Err(qubit_validation_rules::decimal::DecimalValueError::Precision)
+    );
+    let zero = BigDecimal::new(0.into(), i64::MIN);
+    assert_eq!(one_digit.validate(&zero, &()), Ok(()));
+    let tiny_fraction = BigDecimal::new(1.into(), i64::MAX);
+    assert_eq!(one_digit.validate(&tiny_fraction, &()), Err(DecimalValueError::Scale));
+    let fractional_zero = BigDecimal::new(0.into(), i64::MAX);
+    assert_eq!(one_digit.validate(&fractional_zero, &()), Ok(()));
+
+    let bounded = DecimalValue::new(
+        Some(1),
+        0,
+        Some(Bound::Included(BigDecimal::from(0))),
+        Some(Bound::Included(value.clone())),
+    )
+    .unwrap();
+    assert_eq!(bounded.validate(&value, &()), Ok(()));
+    assert_eq!(bounded.validate(&negative, &()), Err(DecimalValueError::Range));
+}
+
+#[cfg(feature = "decimal")]
+#[test]
+fn test_registered_decimal_max_bound_is_exact_and_exclusive() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::ids;
+
+    let registry = create_test_registry();
+    let args = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("max", ValidationArgument::String("1.2300")),
+        NamedValidationArgument::new("max_inclusive", ValidationArgument::Bool(false)),
+    ];
+    let rule = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+        .unwrap();
+    let at_max = "1.23".parse::<BigDecimal>().unwrap();
+    let below_max = "1.22".parse::<BigDecimal>().unwrap();
+    assert_eq!(
+        violation_code(
+            rule.validate(ValidationValue::Typed(&at_max), &BoundValidationContext::new(&[]))
+                .unwrap()
+        ),
+        "decimal.range"
+    );
+    assert_eq!(
+        rule.validate(ValidationValue::Typed(&below_max), &BoundValidationContext::new(&[]))
+            .unwrap(),
+        ValidationOutcome::Valid
+    );
+}
+
+#[cfg(feature = "time")]
+#[test]
+fn test_time_precision_every_resolution_on_each_chrono_type_across_utc_day() {
+    use chrono::DateTime;
+    use chrono::NaiveDate;
+    use chrono::NaiveTime;
+    use chrono::Utc;
+    use qubit_validation_rules::time::TemporalResolution;
+    use qubit_validation_rules::time::TimePrecision;
+
+    let date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+    let cases = [
+        (TemporalResolution::Second, 0, true),
+        (TemporalResolution::Second, 1, false),
+        (TemporalResolution::Millisecond, 1_000_000, true),
+        (TemporalResolution::Millisecond, 1_000_001, false),
+        (TemporalResolution::Microsecond, 1_000, true),
+        (TemporalResolution::Microsecond, 1_001, false),
+        (TemporalResolution::Nanosecond, 1, true),
+    ];
+    for (resolution, nanos, accepted) in cases {
+        let time = NaiveTime::from_hms_nano_opt(0, 0, 0, nanos).unwrap();
+        let naive = date.and_time(time);
+        let utc: DateTime<Utc> = naive.and_utc();
+        let rule = TimePrecision::new(resolution);
+        assert_eq!(rule.validate(&time, &()).is_ok(), accepted);
+        assert_eq!(rule.validate(&naive, &()).is_ok(), accepted);
+        assert_eq!(rule.validate(&utc, &()).is_ok(), accepted);
+        let before_midnight = NaiveTime::from_hms_nano_opt(23, 59, 59, nanos).unwrap();
+        let prior_day: DateTime<Utc> = NaiveDate::from_ymd_opt(2025, 12, 31)
+            .unwrap()
+            .and_time(before_midnight)
+            .and_utc();
+        assert_eq!(rule.validate(&prior_day, &()).is_ok(), accepted);
+    }
+}
+
+#[cfg(feature = "time")]
+#[test]
+fn test_time_precision_on_all_chrono_inputs_and_registration() {
+    use chrono::DateTime;
+    use chrono::NaiveDate;
+    use chrono::NaiveTime;
+    use chrono::Utc;
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::time::TemporalResolution;
+    use qubit_validation_rules::time::TimePrecision;
+    use qubit_validation_rules::time::TimePrecisionError;
+
+    let precise = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_000_000).unwrap();
+    let second = TimePrecision::new(TemporalResolution::Second);
+    let milli = TimePrecision::new(TemporalResolution::Millisecond);
+    let micro = TimePrecision::new(TemporalResolution::Microsecond);
+    let nano = TimePrecision::new(TemporalResolution::Nanosecond);
+    assert_eq!(second.validate(&precise, &()), Err(TimePrecisionError::Precision));
+    assert_eq!(milli.validate(&precise, &()), Ok(()));
+    assert_eq!(micro.validate(&precise, &()), Ok(()));
+    assert_eq!(nano.validate(&precise, &()), Ok(()));
+    let date_time = NaiveDate::from_ymd_opt(2025, 12, 31).unwrap().and_time(precise);
+    let utc: DateTime<Utc> = date_time.and_utc();
+    assert_eq!(second.validate(&date_time, &()), Err(TimePrecisionError::Precision));
+    assert_eq!(second.validate(&utc, &()), Err(TimePrecisionError::Precision));
+    let micros = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_456_000).unwrap();
+    let nanos = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_456_789).unwrap();
+    assert_eq!(milli.validate(&micros, &()), Err(TimePrecisionError::Precision));
+    assert_eq!(micro.validate(&micros, &()), Ok(()));
+    assert_eq!(micro.validate(&nanos, &()), Err(TimePrecisionError::Precision));
+    assert_eq!(nano.validate(&nanos, &()), Ok(()));
+    let registry = create_test_registry();
+    let args = [NamedValidationArgument::new(
+        "precision",
+        ValidationArgument::String("second"),
+    )];
+    for input in [
+        InputType::of::<NaiveTime>(),
+        InputType::of::<chrono::NaiveDateTime>(),
+        InputType::of::<DateTime<Utc>>(),
+    ] {
+        assert!(registry.bind(ids::TIME_PRECISION, input, &args).is_ok());
+    }
+    let bound = registry
+        .bind(ids::TIME_PRECISION, InputType::of::<DateTime<Utc>>(), &args)
+        .unwrap();
+    let outcome = bound
+        .validate(ValidationValue::Typed(&utc), &BoundValidationContext::new(&[]))
+        .unwrap();
+    assert_eq!(violation_code(outcome), "time.precision");
+    let invalid = [NamedValidationArgument::new(
+        "precision",
+        ValidationArgument::String("minute"),
+    )];
+    let error = registry
+        .bind(ids::TIME_PRECISION, InputType::of::<NaiveTime>(), &invalid)
+        .unwrap_err();
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("precision"));
+}
+
 #[test]
 fn test_typed_text_rules_cover_success_and_domain_errors() {
     assert_eq!(NonBlank.validate(" text ", &()), Ok(()));

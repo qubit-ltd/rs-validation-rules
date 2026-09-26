@@ -16,6 +16,9 @@ mod registry;
 
 /// Collection validation rules.
 pub mod collection;
+/// Exact decimal validation rules.
+#[cfg(feature = "decimal")]
+pub mod decimal;
 /// Mainland China identity-card validation rules.
 #[cfg(feature = "china-identity")]
 pub mod identity;
@@ -26,5 +29,8 @@ pub mod ids;
 pub mod regex_rule;
 /// Text validation rules.
 pub mod text;
+/// Temporal resolution validation rules.
+#[cfg(feature = "time")]
+pub mod time;
 
 pub use registry::registrations;

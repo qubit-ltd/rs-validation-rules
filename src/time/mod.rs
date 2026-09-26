@@ -6,16 +6,12 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
-//! Dynamic registration adapters for typed rules.
+//! Temporal resolution validation.
 
-mod collection;
-#[cfg(feature = "decimal")]
-mod decimal;
-#[cfg(feature = "regex")]
-mod regex;
-mod registrations;
-mod text;
-#[cfg(feature = "time")]
-mod time;
+mod temporal_resolution;
+mod time_precision;
+mod time_precision_error;
 
-pub use registrations::registrations;
+pub use temporal_resolution::TemporalResolution;
+pub use time_precision::TimePrecision;
+pub use time_precision_error::TimePrecisionError;

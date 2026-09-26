@@ -6,16 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
-//! Dynamic registration adapters for typed rules.
+//! Exact decimal value validation.
 
-mod collection;
-#[cfg(feature = "decimal")]
-mod decimal;
-#[cfg(feature = "regex")]
-mod regex;
-mod registrations;
-mod text;
-#[cfg(feature = "time")]
-mod time;
+mod decimal_value;
+mod decimal_value_error;
 
-pub use registrations::registrations;
+pub use decimal_value::DecimalValue;
+pub use decimal_value_error::DecimalValueError;

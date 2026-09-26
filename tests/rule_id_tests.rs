@@ -10,6 +10,8 @@ use std::collections::HashSet;
 
 use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
+#[cfg(feature = "inventory")]
+use qubit_validator::ValidatorRegistry;
 
 #[test]
 fn test_public_rule_ids_match_explicit_registrations() {
@@ -27,6 +29,10 @@ fn test_public_rule_ids_match_explicit_registrations() {
     ];
     #[cfg(feature = "regex")]
     expected.push(ids::TEXT_REGEX);
+    #[cfg(feature = "decimal")]
+    expected.push(ids::DECIMAL_VALUE);
+    #[cfg(feature = "time")]
+    expected.push(ids::TIME_PRECISION);
 
     let mut registered = registrations()
         .into_iter()
@@ -59,4 +65,25 @@ fn test_public_rule_ids_keep_their_protocol_values() {
     assert_eq!(ids::COLLECTION_ITEM_COUNT, "qubit.rules.collection.item_count");
     #[cfg(feature = "regex")]
     assert_eq!(ids::TEXT_REGEX, "qubit.rules.text.regex");
+    #[cfg(feature = "decimal")]
+    assert_eq!(ids::DECIMAL_VALUE, "qubit.rules.decimal.value");
+    #[cfg(feature = "time")]
+    assert_eq!(ids::TIME_PRECISION, "qubit.rules.time.precision");
+}
+
+#[cfg(feature = "inventory")]
+#[test]
+fn test_public_rule_ids_match_inventory_registrations() {
+    let mut explicit = registrations()
+        .into_iter()
+        .map(|registration| registration.id().as_str())
+        .collect::<Vec<_>>();
+    let mut discovered = ValidatorRegistry::global()
+        .registrations()
+        .iter()
+        .map(|registration| registration.id().as_str())
+        .collect::<Vec<_>>();
+    explicit.sort_unstable();
+    discovered.sort_unstable();
+    assert_eq!(discovered, explicit);
 }

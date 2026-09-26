@@ -6,16 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
-//! Dynamic registration adapters for typed rules.
-
-mod collection;
-#[cfg(feature = "decimal")]
-mod decimal;
-#[cfg(feature = "regex")]
-mod regex;
-mod registrations;
-mod text;
-#[cfg(feature = "time")]
-mod time;
-
-pub use registrations::registrations;
+/// A temporal value has finer resolution than declared.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum TimePrecisionError {
+    /// The nanosecond component is not divisible by the declared unit.
+    #[error("temporal precision exceeded")]
+    Precision,
+}
