@@ -9,14 +9,14 @@
 use qubit_validator::BoundValidationContext;
 use qubit_validator::Validator;
 
-use super::TextRuleError;
+use super::matches_dependency_error::MatchesDependencyError;
 
 /// Requires target text to match the first declared text dependency.
 ///
 /// # Examples
 ///
 /// ```
-/// use qubit_validation_rules::text::MatchesDependency;
+/// use qubit_validation_rules::text::{MatchesDependency, MatchesDependencyError};
 /// use qubit_validator::BoundValidationContext;
 /// use qubit_validator::ValidationValue;
 /// use qubit_validator::Validator;
@@ -25,13 +25,18 @@ use super::TextRuleError;
 /// let context = BoundValidationContext::new(&values);
 /// let rule = MatchesDependency;
 /// assert!(rule.validate("confirmation", &context).is_ok());
+/// assert_eq!(rule.validate("different", &context), Err(MatchesDependencyError::Mismatch));
+/// assert_eq!(
+///     rule.validate("confirmation", &BoundValidationContext::new(&[])),
+///     Err(MatchesDependencyError::MissingDependency),
+/// );
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MatchesDependency;
 
 impl<'a> Validator<str, BoundValidationContext<'a>> for MatchesDependency {
-    /// Mismatch emitted when the declared dependency cannot be read or differs.
-    type Error = TextRuleError;
+    /// Distinguishes an unreadable dependency from unequal text.
+    type Error = MatchesDependencyError;
 
     /// Compares the input with dependency slot zero without including either
     /// value in the returned error.
@@ -44,14 +49,15 @@ impl<'a> Validator<str, BoundValidationContext<'a>> for MatchesDependency {
     /// Returns `Ok(())` when the input equals the first dependency text.
     ///
     /// # Errors
-    /// Returns [`TextRuleError::DependencyMismatch`] when the dependency cannot
-    /// be read or the texts differ.
+    /// Returns [`MatchesDependencyError::MissingDependency`] when slot zero is
+    /// absent or not text, and [`MatchesDependencyError::Mismatch`] when the
+    /// texts differ.
     fn validate(&self, value: &str, context: &BoundValidationContext<'a>) -> Result<(), Self::Error> {
-        let expected = context.text(0).map_err(|_| TextRuleError::DependencyMismatch)?;
+        let expected = context.text(0).map_err(|_| MatchesDependencyError::MissingDependency)?;
         if value == expected {
             Ok(())
         } else {
-            Err(TextRuleError::DependencyMismatch)
+            Err(MatchesDependencyError::Mismatch)
         }
     }
 }

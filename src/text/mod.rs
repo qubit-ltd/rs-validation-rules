@@ -12,6 +12,7 @@ mod allowed_chars;
 mod format;
 mod length;
 mod matches_dependency;
+mod matches_dependency_error;
 mod non_blank;
 
 pub use allowed_chars::AllowedChars;
@@ -27,5 +28,6 @@ pub use length::ByteLengthError;
 pub use length::CharLength;
 pub use length::TextLengthError;
 pub use matches_dependency::MatchesDependency;
+pub use matches_dependency_error::MatchesDependencyError;
 pub use non_blank::NonBlank;
 pub use non_blank::NonBlankError;

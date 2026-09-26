@@ -12,10 +12,15 @@ use qubit_validator::ArgumentReader;
 use qubit_validator::BindError;
 use qubit_validator::BindErrorKind;
 use qubit_validator::DependencySpec;
+use qubit_validator::ExecutionError;
+use qubit_validator::ExecutionErrorKind;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
+use qubit_validator::PreparedOutcome;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
 use qubit_validator::ValidatorDescriptor;
 use qubit_validator::ValidatorId;
 use qubit_validator::ValidatorRegistration;
@@ -23,7 +28,6 @@ use qubit_validator::ValidatorSignature;
 use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
 use qubit_validator::ViolationParam;
-use qubit_validator::prepare_contextual_text_validator;
 use qubit_validator::prepare_text_validator;
 #[cfg(feature = "inventory")]
 use qubit_validator::register_validator;
@@ -36,6 +40,7 @@ use crate::text::CharacterSet;
 use crate::text::ChinaMobileStructure;
 use crate::text::EmailAscii;
 use crate::text::MatchesDependency;
+use crate::text::MatchesDependencyError;
 use crate::text::NonBlank;
 use crate::text::TextLengthError;
 use crate::text::Uri;
@@ -176,9 +181,33 @@ fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepare
 /// Returns a bind error when an argument is supplied.
 fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(prepare_contextual_text_validator(MatchesDependency, |_| {
-        ViolationDraft::new(ViolationCode::new("text.dependency_mismatch"))
-    }))
+    Ok(Arc::new(MatchesDependencyAdapter))
+}
+
+/// Preserves the distinction between a domain mismatch and an invalid context.
+struct MatchesDependencyAdapter;
+
+impl PreparedValidator for MatchesDependencyAdapter {
+    /// Validates text with slot zero, returning a contract error if it is
+    /// unreadable.
+    fn validate(
+        &self,
+        value: ValidationValue<'_>,
+        context: &qubit_validator::BoundValidationContext<'_>,
+    ) -> Result<PreparedOutcome, ExecutionError> {
+        let text = value
+            .as_text()
+            .ok_or_else(|| ExecutionError::new(ExecutionErrorKind::InputTypeMismatch))?;
+        match MatchesDependency.validate(text, context) {
+            Ok(()) => Ok(PreparedOutcome::valid()),
+            Err(MatchesDependencyError::Mismatch) => Ok(PreparedOutcome::Invalid(vec![ViolationDraft::new(
+                ViolationCode::new("text.dependency_mismatch"),
+            )])),
+            Err(MatchesDependencyError::MissingDependency) => {
+                Err(ExecutionError::new(ExecutionErrorKind::AdapterContractViolation))
+            }
+        }
+    }
 }
 /// Binds a mainland China mobile-number structure rule.
 ///

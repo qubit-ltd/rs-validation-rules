@@ -11,8 +11,11 @@ use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
 use qubit_validation_rules::text::ChinaMobileStructure;
 use qubit_validation_rules::text::EmailAscii;
+use qubit_validation_rules::text::MatchesDependency;
+use qubit_validation_rules::text::MatchesDependencyError;
 use qubit_validation_rules::text::Uri;
 use qubit_validator::BoundValidationContext;
+use qubit_validator::ExecutionErrorKind;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
 use qubit_validator::ValidationArgument;
@@ -150,4 +153,64 @@ fn test_dependency_text_rule_reports_missing_slot_before_invocation() {
         .expect_err("required dependency is checked before validator execution");
     assert_eq!(error.dependency(), Some("expected"));
     assert_eq!(error.path(), &path);
+    assert_eq!(error.kind(), ExecutionErrorKind::MissingRequiredDependencyValue);
+}
+
+#[test]
+fn test_matches_dependency_direct_call_distinguishes_missing_and_mismatch() {
+    let rule = MatchesDependency;
+    let empty = BoundValidationContext::new(&[]);
+    assert_eq!(
+        rule.validate("private-input", &empty),
+        Err(MatchesDependencyError::MissingDependency)
+    );
+
+    let missing_values = [ValidationValue::Missing];
+    let missing = BoundValidationContext::new(&missing_values);
+    assert_eq!(
+        rule.validate("private-input", &missing),
+        Err(MatchesDependencyError::MissingDependency)
+    );
+
+    let wrong_type = 42_u32;
+    let wrong_type_values = [ValidationValue::Typed(&wrong_type)];
+    let wrong_type_context = BoundValidationContext::new(&wrong_type_values);
+    assert_eq!(
+        rule.validate("private-input", &wrong_type_context),
+        Err(MatchesDependencyError::MissingDependency)
+    );
+
+    let expected_values = [ValidationValue::Text("private-expected")];
+    let expected = BoundValidationContext::new(&expected_values);
+    assert_eq!(
+        rule.validate("private-input", &expected),
+        Err(MatchesDependencyError::Mismatch)
+    );
+    assert_eq!(rule.validate("private-expected", &expected), Ok(()));
+
+    for error in [
+        MatchesDependencyError::MissingDependency,
+        MatchesDependencyError::Mismatch,
+    ] {
+        assert!(!format!("{error:?} {error}").contains("private-input"));
+        assert!(!format!("{error:?} {error}").contains("private-expected"));
+    }
+}
+
+#[test]
+fn test_matches_dependency_prepared_adapter_preserves_missing_dependency_error() {
+    let registration = registrations()
+        .into_iter()
+        .find(|registration| registration.id().as_str() == "qubit.rules.text.matches_dependency")
+        .expect("dependency rule is registered");
+    let signature = registration.descriptor().signatures()[0];
+    let prepared = (signature.prepare())(&[]).expect("dependency rule prepares");
+    let error = prepared
+        .validate(
+            ValidationValue::Text("private-input"),
+            &BoundValidationContext::new(&[]),
+        )
+        .expect_err("missing dependency remains an execution error");
+    assert_eq!(error.kind(), ExecutionErrorKind::AdapterContractViolation);
+    assert!(!format!("{error:?} {error}").contains("private-input"));
 }
