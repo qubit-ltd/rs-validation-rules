@@ -781,6 +781,41 @@ fn test_regex_rule_compiles_and_matches_full_input() {
     );
 }
 
+/// Typed and registered regex construction share the pattern byte limit.
+#[cfg(feature = "regex")]
+#[test]
+fn test_regex_rejects_pattern_above_limit() {
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::regex_rule::RegexMatch;
+
+    let allowed = "a".repeat(4_096);
+    assert!(
+        RegexMatch::new(&allowed).is_ok(),
+        "a simple pattern at the limit must compile"
+    );
+
+    let too_long = "a".repeat(4_097);
+    let error = match RegexMatch::new(&too_long) {
+        Ok(_) => panic!("typed constructor accepted an oversized pattern"),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("pattern"));
+
+    let registry = create_test_registry();
+    let args = [NamedValidationArgument::new(
+        "pattern",
+        ValidationArgument::String(&too_long),
+    )];
+    let error = match registry.bind(ids::TEXT_REGEX, InputType::Text, &args) {
+        Ok(_) => panic!("registry accepted an oversized pattern"),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("pattern"));
+    assert!(matches!(RegexMatch::new("["), Err(error) if error.kind() == BindErrorKind::InvalidPattern));
+}
+
 #[cfg(feature = "china-identity")]
 #[test]
 fn test_china_identity_structure_accepts_zero_region_code() {
