@@ -14,7 +14,10 @@ use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedValidator;
+use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorDescriptor;
+use qubit_validator::ValidatorId;
+use qubit_validator::ValidatorRegistration;
 use qubit_validator::ValidatorSignature;
 use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
@@ -51,5 +54,12 @@ const REGEX_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, E
 /// Registry descriptor exposed for local and inventory registration.
 #[cfg(feature = "regex")]
 pub(super) static DESC_REGEX: ValidatorDescriptor = ValidatorDescriptor::new(&[REGEX_SIG]);
+/// Registration shared by the local and optional inventory registries.
+#[cfg(feature = "regex")]
+pub(super) const REG_REGEX: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_REGEX),
+    &DESC_REGEX,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
 #[cfg(all(feature = "inventory", feature = "regex"))]
-register_validator!(id = "qubit.rules.text.regex", descriptor = &DESC_REGEX);
+register_validator!(registration = REG_REGEX);

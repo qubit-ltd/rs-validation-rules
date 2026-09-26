@@ -26,7 +26,9 @@ There are two ways to use a rule:
 `registrations()` returns the built-in dynamic registrations. A registry built
 from this list is local to the application code that owns it. The optional
 `inventory` feature supports process-wide discovery through
-`ValidatorRegistry::global()`.
+`ValidatorRegistry::global()`. Each built-in rule uses one registration
+constant for both the local list and inventory discovery, keeping its ID,
+descriptor, and source metadata identical across both paths.
 
 ## Scenario: Validate a Callback URI
 

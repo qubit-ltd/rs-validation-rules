@@ -6,6 +6,8 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+#[cfg(feature = "inventory")]
+use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
 use qubit_validation_rules::text::ChinaMobileStructure;
 use qubit_validation_rules::text::EmailAscii;
@@ -23,11 +25,13 @@ use qubit_validator::ValidatorRegistry;
 #[cfg(feature = "inventory")]
 #[test]
 fn test_inventory_registrations_match_explicit_builtin_ids() {
-    let mut explicit = registrations()
-        .into_iter()
+    let explicit_registrations = registrations();
+    let mut explicit = explicit_registrations
+        .iter()
         .map(|registration| registration.id().as_str().to_owned())
         .collect::<Vec<_>>();
-    let mut discovered = ValidatorRegistry::global()
+    let global = ValidatorRegistry::global();
+    let mut discovered = global
         .registrations()
         .iter()
         .filter(|registration| registration.id().as_str().starts_with("qubit.rules."))
@@ -36,6 +40,21 @@ fn test_inventory_registrations_match_explicit_builtin_ids() {
     explicit.sort();
     discovered.sort();
     assert_eq!(discovered, explicit);
+    for registration in &explicit_registrations {
+        let linked = global
+            .get(registration.id().as_str())
+            .expect("each local registration has an inventory entry");
+        assert!(std::ptr::eq(linked.descriptor(), registration.descriptor()));
+        assert_eq!(linked.source(), registration.source());
+        assert!(registration.source().line() > 0);
+        let expected_file = match registration.id().as_str() {
+            id if id == ids::COLLECTION_ITEM_COUNT => "collection.rs",
+            #[cfg(feature = "regex")]
+            id if id == ids::TEXT_REGEX => "regex.rs",
+            _ => "text.rs",
+        };
+        assert!(registration.source().file().ends_with(expected_file));
+    }
     #[cfg(feature = "regex")]
     assert!(explicit.iter().any(|id| id == "qubit.rules.text.regex"));
 }

@@ -31,6 +31,7 @@ use qubit_validator::BoundValidationContext;
 use qubit_validator::BoundValidator;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
+use qubit_validator::NamedValidationDependency;
 use qubit_validator::ValidationArgument;
 use qubit_validator::ValidationOutcome;
 use qubit_validator::ValidationValue;
@@ -321,18 +322,20 @@ fn test_registered_rules_cover_preparation_and_mapping_paths() {
     let bound = registry
         .bind(TEXT_MATCHES_DEPENDENCY, InputType::Text, &[])
         .expect("dependency rule binds");
-    let values = [ValidationValue::Text("expected")];
-    let context = BoundValidationContext::new(&values);
+    let dependencies = [NamedValidationDependency::new(
+        "expected",
+        ValidationValue::Text("expected"),
+    )];
     assert_eq!(
         bound
-            .validate(ValidationValue::Text("expected"), &context)
+            .validate_named(ValidationValue::Text("expected"), &dependencies)
             .expect("matching text passes"),
         ValidationOutcome::Valid
     );
     assert_eq!(
         violation_code(
             bound
-                .validate(ValidationValue::Text("different"), &context)
+                .validate_named(ValidationValue::Text("different"), &dependencies)
                 .expect("mismatch is invalid")
         ),
         "text.dependency_mismatch"

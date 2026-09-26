@@ -14,7 +14,10 @@ use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedValidator;
+use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorDescriptor;
+use qubit_validator::ValidatorId;
+use qubit_validator::ValidatorRegistration;
 use qubit_validator::ValidatorSignature;
 use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
@@ -56,5 +59,11 @@ fn prepare_item_count(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Pr
 const COUNT_SIG: ValidatorSignature = ValidatorSignature::new(InputType::of::<usize>(), EMPTY_DEPS, prepare_item_count);
 /// Registry descriptor exposed for local and inventory registration.
 pub(super) static DESC_COUNT: ValidatorDescriptor = ValidatorDescriptor::new(&[COUNT_SIG]);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_COUNT: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::COLLECTION_ITEM_COUNT),
+    &DESC_COUNT,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
 #[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.collection.item_count", descriptor = &DESC_COUNT);
+register_validator!(registration = REG_COUNT);

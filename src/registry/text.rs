@@ -15,7 +15,10 @@ use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedValidator;
+use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorDescriptor;
+use qubit_validator::ValidatorId;
+use qubit_validator::ValidatorRegistration;
 use qubit_validator::ValidatorSignature;
 use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
@@ -266,27 +269,75 @@ pub(super) static DESC_MOBILE: ValidatorDescriptor = ValidatorDescriptor::new(&[
 pub(super) static DESC_URI: ValidatorDescriptor = ValidatorDescriptor::new(&[URI_SIG]);
 /// Registry descriptor for the canonical UUID rule.
 pub(super) static DESC_UUID: ValidatorDescriptor = ValidatorDescriptor::new(&[UUID_SIG]);
-#[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.non_blank", descriptor = &DESC_NON_BLANK);
-#[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.char_length", descriptor = &DESC_CHAR_LENGTH);
-#[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.byte_length", descriptor = &DESC_BYTE_LENGTH);
-#[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.allowed_chars", descriptor = &DESC_ALLOWED);
-#[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.email_ascii", descriptor = &DESC_EMAIL);
-#[cfg(feature = "inventory")]
-register_validator!(
-    id = "qubit.rules.text.matches_dependency",
-    descriptor = &DESC_MATCHES_DEPENDENCY
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_NON_BLANK: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_NON_BLANK),
+    &DESC_NON_BLANK,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_CHAR_LENGTH: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_CHAR_LENGTH),
+    &DESC_CHAR_LENGTH,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_BYTE_LENGTH: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_BYTE_LENGTH),
+    &DESC_BYTE_LENGTH,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_ALLOWED_CHARS: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_ALLOWED_CHARS),
+    &DESC_ALLOWED,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_EMAIL: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_EMAIL_ASCII),
+    &DESC_EMAIL,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_MATCHES_DEPENDENCY: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_MATCHES_DEPENDENCY),
+    &DESC_MATCHES_DEPENDENCY,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_MOBILE: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_CHINA_MOBILE_STRUCTURE),
+    &DESC_MOBILE,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_URI: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_URI),
+    &DESC_URI,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
+);
+/// Registration shared by the local and optional inventory registries.
+pub(super) const REG_UUID: ValidatorRegistration = ValidatorRegistration::new(
+    ValidatorId::new(crate::ids::TEXT_UUID),
+    &DESC_UUID,
+    RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
 #[cfg(feature = "inventory")]
-register_validator!(
-    id = "qubit.rules.text.china_mobile_structure",
-    descriptor = &DESC_MOBILE
-);
+register_validator!(registration = REG_NON_BLANK);
 #[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.uri", descriptor = &DESC_URI);
+register_validator!(registration = REG_CHAR_LENGTH);
 #[cfg(feature = "inventory")]
-register_validator!(id = "qubit.rules.text.uuid", descriptor = &DESC_UUID);
+register_validator!(registration = REG_BYTE_LENGTH);
+#[cfg(feature = "inventory")]
+register_validator!(registration = REG_ALLOWED_CHARS);
+#[cfg(feature = "inventory")]
+register_validator!(registration = REG_EMAIL);
+#[cfg(feature = "inventory")]
+register_validator!(registration = REG_MATCHES_DEPENDENCY);
+#[cfg(feature = "inventory")]
+register_validator!(registration = REG_MOBILE);
+#[cfg(feature = "inventory")]
+register_validator!(registration = REG_URI);
+#[cfg(feature = "inventory")]
+register_validator!(registration = REG_UUID);
