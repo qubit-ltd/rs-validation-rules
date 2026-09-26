@@ -181,8 +181,9 @@ fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepare
 /// Returns a bind error when an argument is supplied.
 fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
     no_args(args)?;
-    Ok(prepare_text_with_context(|text, context| {
-        match MatchesDependency.validate(text, context) {
+    Ok(prepare_text_with_context(
+        MATCHES_DEPENDENCY_DEPS,
+        |text, context| match MatchesDependency.validate(text, context) {
             Ok(()) => Ok(PreparedOutcome::valid()),
             Err(MatchesDependencyError::Mismatch) => Ok(PreparedOutcome::Invalid(vec![ViolationDraft::new(
                 ViolationCode::new("text.dependency_mismatch"),
@@ -190,8 +191,8 @@ fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Ar
             Err(MatchesDependencyError::MissingDependency) => {
                 Err(ExecutionError::new(ExecutionErrorKind::AdapterContractViolation))
             }
-        }
-    }))
+        },
+    ))
 }
 /// Binds a mainland China mobile-number structure rule.
 ///
