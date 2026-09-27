@@ -170,13 +170,19 @@ does not need the `inventory` feature for that path.
 - `UniqueItems::first_duplicate_with_limit(values, max_comparisons)` compares
   elements with `PartialEq` and returns the first `(first_index, second_index)`
   pair. The budget caps actual equality calls; zero succeeds for fewer than two
-  items and otherwise returns `ComparisonLimitExceeded`. Worst-case work is O(n²).
+  items and otherwise returns `ComparisonLimitExceeded`. `collection::UniquePairs`
+  exposes the same index-pair order for consumers that own their comparison
+  behavior and budgets. Worst-case work is O(n²).
 - `DecimalValue::new(precision, scale, min, max)` validates `BigDecimal` using
   `DECIMAL(p,s)` capacity: at most `s` fractional digits and `p-s` integer digits.
   It normalizes representation-only trailing zeros first, so `(3,2)` accepts
   `1.2300` and rejects `12`. Checks run in scale, precision, range order. Bounds
   can be inclusive or exclusive. A rule never rounds its input. This intentionally
-  changes the old `(1,0)` behavior that accepted `1e3`.
+  changes the old `(1,0)` behavior that accepted `1e3`. Construction rejects a
+  bound interval with no representable value on the declared scale grid. The
+  feasibility check limits constructed endpoint intermediates to 131,072 digits
+  and reports larger work as `ParameterOutOfRange` with the `min` or `max`
+  parameter name.
 - `TimePrecision::new` supports `Second`, `Millisecond`, `Microsecond`, and
   `Nanosecond` for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`. The
   nanosecond component must divide evenly by the selected unit; no rounding or

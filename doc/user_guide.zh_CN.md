@@ -151,11 +151,14 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   都缺省会返回 `InvalidBounds`。
 - `UniqueItems::first_duplicate_with_limit(values, max_comparisons)` 用 `PartialEq` 比较元素，
   返回第一对重复元素的 `(first_index, second_index)`。预算限制实际相等比较次数；少于两个
-  元素时零预算成功，否则返回 `ComparisonLimitExceeded`。最坏复杂度为 O(n²)。
+  元素时零预算成功，否则返回 `ComparisonLimitExceeded`。`collection::UniquePairs` 为需要自行
+  管理比较行为和预算的调用方提供相同顺序的索引对。最坏复杂度为 O(n²)。
 - `DecimalValue::new(precision, scale, min, max)` 按 `DECIMAL(p,s)` 容量校验 `BigDecimal`：
   小数最多 `s` 位，整数最多 `p-s` 位。先忽略表示性尾零，因此 `(3,2)` 接受 `1.2300`、拒绝
   `12`。依次检查 scale、precision、range；上下界可包含或排除端点。规则不会舍入输入。
-  这是有意的破坏性变更：旧版 `(1,0)` 会接受 `1e3`，新版拒绝。
+  这是有意的破坏性变更：旧版 `(1,0)` 会接受 `1e3`，新版拒绝。构造时还会拒绝声明刻度网格
+  上无解的边界区间。可满足性检查构造的端点中间值最多为 131,072 位，超限时返回带 `min`
+  或 `max` 参数名的 `ParameterOutOfRange`。
 - `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
   不舍入，也不调整日期。
