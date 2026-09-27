@@ -22,6 +22,8 @@ use super::range_error::RangeError;
 /// discrete type, an ordered interval can still contain no values, as with the
 /// open integer interval `(1, 2)`.
 ///
+/// Its `Debug` output reports endpoint kinds but redacts endpoint values.
+///
 /// # Type Parameters
 /// - `T`: `PartialOrd` value type compared with the range endpoints.
 ///
@@ -37,12 +39,38 @@ use super::range_error::RangeError;
 /// assert!(rule.validate(&2, &()).is_ok());
 /// assert!(rule.validate(&1, &()).is_err());
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Range<T> {
     /// Lower endpoint, including whether equality is accepted.
     lower: Bound<T>,
     /// Upper endpoint, including whether equality is accepted.
     upper: Bound<T>,
+}
+
+/// Formats a bound without exposing its endpoint value.
+struct RedactedBound<'a, T>(&'a Bound<T>);
+
+impl<T> std::fmt::Debug for RedactedBound<'_, T> {
+    /// Writes the bound variant and a fixed redaction marker.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Bound::Unbounded => formatter.write_str("Unbounded"),
+            Bound::Included(_) => formatter.write_str("Included(<redacted>)"),
+            Bound::Excluded(_) => formatter.write_str("Excluded(<redacted>)"),
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for Range<T> {
+    /// Formats endpoint kinds without requiring endpoint values to implement
+    /// `Debug`.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Range")
+            .field("lower", &RedactedBound(&self.lower))
+            .field("upper", &RedactedBound(&self.upper))
+            .finish()
+    }
 }
 
 impl<T: PartialOrd> Range<T> {

@@ -29,6 +29,35 @@ use qubit_validator::ViolationParam;
 const ITEM_COUNT_ID: &str = "qubit.rules.collection.item_count";
 
 #[test]
+fn test_range_debug_redacts_endpoints() {
+    let range =
+        Range::new(Bound::Included("sensitive-lower"), Bound::Excluded("sensitive-upper")).expect("ordered bounds");
+    let debug = format!("{range:?}");
+
+    assert_eq!(
+        debug,
+        "Range { lower: Included(<redacted>), upper: Excluded(<redacted>) }"
+    );
+    assert!(!debug.contains("sensitive-lower"));
+    assert!(!debug.contains("sensitive-upper"));
+
+    let unbounded = Range::<i32>::new(Bound::Unbounded, Bound::Unbounded).expect("unbounded range");
+    assert_eq!(format!("{unbounded:?}"), "Range { lower: Unbounded, upper: Unbounded }");
+}
+
+#[test]
+fn test_range_debug_does_not_require_debug_endpoints() {
+    #[derive(PartialEq, PartialOrd)]
+    struct PartialOrdOnly(i32);
+
+    let range = Range::new(Bound::Included(PartialOrdOnly(1)), Bound::Unbounded).expect("ordered bounds");
+    assert_eq!(
+        format!("{range:?}"),
+        "Range { lower: Included(<redacted>), upper: Unbounded }"
+    );
+}
+
+#[test]
 fn test_unique_items_finds_first_partial_eq_duplicate() {
     assert_eq!(UniqueItems::first_duplicate_with_limit(&[1, 2, 1], 2), Ok(Some((0, 2))));
     assert_eq!(
