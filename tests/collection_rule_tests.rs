@@ -14,6 +14,7 @@ use qubit_validation_rules::collection::ComparisonLimitExceeded;
 use qubit_validation_rules::collection::Range;
 use qubit_validation_rules::collection::RangeError;
 use qubit_validation_rules::collection::UniqueItems;
+use qubit_validation_rules::collection::UniquePairs;
 use qubit_validation_rules::registrations;
 use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
@@ -27,6 +28,17 @@ use qubit_validator::ValidatorRegistry;
 use qubit_validator::ViolationParam;
 
 const ITEM_COUNT_ID: &str = "qubit.rules.collection.item_count";
+
+#[test]
+fn test_unique_pairs_emits_each_pair_in_duplicate_search_order() {
+    assert_eq!(
+        UniquePairs::new(4).collect::<Vec<_>>(),
+        vec![(0, 1), (0, 2), (1, 2), (0, 3), (1, 3), (2, 3)],
+    );
+    assert_eq!(UniquePairs::new(0).collect::<Vec<_>>(), Vec::<(usize, usize)>::new());
+    assert_eq!(UniquePairs::new(1).collect::<Vec<_>>(), Vec::<(usize, usize)>::new());
+    assert_eq!(UniquePairs::new(2).collect::<Vec<_>>(), vec![(0, 1)]);
+}
 
 #[test]
 fn test_range_debug_redacts_endpoints() {

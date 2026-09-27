@@ -8,6 +8,7 @@
 
 //! Typed duplicate detection for borrowed sequences.
 
+use super::UniquePairs;
 use super::comparison_limit_exceeded::ComparisonLimitExceeded;
 
 /// Finds the first duplicate according to [`PartialEq`] within a comparison
@@ -24,16 +25,12 @@ impl UniqueItems {
         values: &[T],
         max_comparisons: usize,
     ) -> Result<Option<(usize, usize)>, ComparisonLimitExceeded> {
-        let mut comparisons = 0;
-        for second in 1..values.len() {
-            for first in 0..second {
-                if comparisons >= max_comparisons {
-                    return Err(ComparisonLimitExceeded);
-                }
-                comparisons += 1;
-                if values[first] == values[second] {
-                    return Ok(Some((first, second)));
-                }
+        for (comparisons, (first, second)) in UniquePairs::new(values.len()).enumerate() {
+            if comparisons >= max_comparisons {
+                return Err(ComparisonLimitExceeded);
+            }
+            if values[first] == values[second] {
+                return Ok(Some((first, second)));
             }
         }
         Ok(None)
