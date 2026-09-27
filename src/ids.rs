@@ -28,6 +28,10 @@ pub const TEXT_URI: &str = "qubit.rules.text.uri";
 pub const TEXT_UUID: &str = "qubit.rules.text.uuid";
 /// Stable identifier for the collection item-count rule.
 pub const COLLECTION_ITEM_COUNT: &str = "qubit.rules.collection.item_count";
+/// Stable ID for model-intrinsic sequence uniqueness.
+///
+/// This rule is not included in [`crate::registrations`] or inventory.
+pub const COLLECTION_UNIQUE: &str = "qubit.rules.collection.unique";
 /// Stable identifier for the exact decimal value rule.
 #[cfg(feature = "decimal")]
 pub const DECIMAL_VALUE: &str = "qubit.rules.decimal.value";

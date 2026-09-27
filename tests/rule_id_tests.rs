@@ -63,12 +63,22 @@ fn test_public_rule_ids_keep_their_protocol_values() {
     assert_eq!(ids::TEXT_URI, "qubit.rules.text.uri");
     assert_eq!(ids::TEXT_UUID, "qubit.rules.text.uuid");
     assert_eq!(ids::COLLECTION_ITEM_COUNT, "qubit.rules.collection.item_count");
+    assert_eq!(ids::COLLECTION_UNIQUE, "qubit.rules.collection.unique");
     #[cfg(feature = "regex")]
     assert_eq!(ids::TEXT_REGEX, "qubit.rules.text.regex");
     #[cfg(feature = "decimal")]
     assert_eq!(ids::DECIMAL_VALUE, "qubit.rules.decimal.value");
     #[cfg(feature = "time")]
     assert_eq!(ids::TIME_PRECISION, "qubit.rules.time.precision");
+}
+
+#[test]
+fn test_intrinsic_unique_id_is_not_dynamically_registered() {
+    assert!(
+        registrations()
+            .iter()
+            .all(|registration| registration.id().as_str() != ids::COLLECTION_UNIQUE)
+    );
 }
 
 #[cfg(feature = "inventory")]
