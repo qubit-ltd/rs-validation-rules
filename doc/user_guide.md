@@ -26,9 +26,12 @@ There are two ways to use a rule:
 `registrations()` returns the built-in dynamic registrations. A registry built
 from this list is local to the application code that owns it. The optional
 `inventory` feature supports process-wide discovery through
-`ValidatorRegistry::global()`. Each built-in rule uses one registration
+`ValidatorRegistry::global()`. Each dynamically registered built-in rule uses one registration
 constant for both the local list and inventory discovery, keeping its ID,
 descriptor, and source metadata identical across both paths.
+`ids::COLLECTION_UNIQUE` is the stable ID for model-intrinsic sequence
+uniqueness. It is reserved by `rs-model-metadata` and is not a dynamic
+registration because that backend supplies its own budget-aware adapter.
 
 ## Scenario: Validate a Callback URI
 
@@ -163,6 +166,7 @@ does not need the `inventory` feature for that path.
 - `ItemCount` uses `usize` bounds. `Range<T>` checks endpoint order and supports
   included, excluded, and unbounded endpoints for partially ordered values;
   endpoint ordering does not prove that a discrete type has an interior value.
+  Its `Debug` output shows endpoint kinds and redacts endpoint values.
 - `UniqueItems::first_duplicate_with_limit(values, max_comparisons)` compares
   elements with `PartialEq` and returns the first `(first_index, second_index)`
   pair. The budget caps actual equality calls; zero succeeds for fewer than two
@@ -193,7 +197,9 @@ Outer `#[sequence(unique_items)]` instead uses an element `PartialEq` adapter
 for a supported `Vec<T>` or array with a borrowed-slice getter; it is not a
 general-purpose dynamic registration. Missing adapters and incompatible types
 fail plan construction. A duplicate produces one violation at the later element
-index and includes `first_index`; Map count violations use the field path.
+index and includes `first_index`. Its stable ID is `ids::COLLECTION_UNIQUE`,
+which cannot be claimed by a custom registration; Map count violations use the
+field path.
 
 The model plan's `max_nodes` budget counts actual reads and rule invocations.
 `max_comparisons` counts each uniqueness pair comparison and selector element

@@ -24,7 +24,9 @@ Rust 应用开发者，介绍如何在固定业务逻辑中直接调用类型化
 `registrations()` 提供内置动态注册项。应用可据此建立局部注册表，并自行控制
 其生命周期和内容。可选的 `inventory` feature 支持通过
 `ValidatorRegistry::global()` 进行进程级发现。
-每条内置规则只使用一个注册常量，同时供局部列表和 inventory 发现使用，因此两条路径的 ID、描述符和来源元数据保持一致。
+每条动态注册的内置规则只使用一个注册常量，同时供局部列表和 inventory 发现使用，因此两条路径的 ID、描述符和来源元数据保持一致。
+`ids::COLLECTION_UNIQUE` 是模型内建序列唯一性规则的稳定 ID，由
+`rs-model-metadata` 保留；该后端提供受预算控制的适配器，因此它不是动态注册项。
 
 ## 实战场景：检查回调 URI
 
@@ -143,7 +145,8 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 - `EmailAscii` 检查 ASCII 邮箱的格式轮廓和长度，不确认邮箱是否存在或能否收信。
 - `Uri` 检查 RFC 3986 绝对 URI 语法，也接受 `mailto:`、`urn:` 等非 Web scheme。
 - `ItemCount` 使用 `usize` 表示上下界；`Range<T>` 可为可部分排序的值配置包含、
-  排除或无界端点；端点有序不代表离散类型的区间内一定有值。
+  排除或无界端点；端点有序不代表离散类型的区间内一定有值。它的 `Debug` 输出
+  显示端点类型并隐藏端点值。
 - `CharLength`、`ByteLength` 和 `ItemCount` 至少要配置一个边界；绑定时 `min`、`max`
   都缺省会返回 `InvalidBounds`。
 - `UniqueItems::first_duplicate_with_limit(values, max_comparisons)` 用 `PartialEq` 比较元素，
@@ -168,7 +171,8 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 的 entry 数量交给已注册的 `ItemCount` 规则。外层 `#[sequence(unique_items)]` 则对受支持的
 `Vec<T>` 或数组使用借用切片 getter 和元素 `PartialEq` 适配器，不提供通用动态注册项。
 缺少适配器或具体类型不符会使计划构建失败。重复元素在较后的索引处产生一条违规，参数中包含
-`first_index`；Map 数量违规使用字段路径。
+`first_index`。该内建规则使用稳定 ID `ids::COLLECTION_UNIQUE`，自定义注册不能占用它；
+Map 数量违规使用字段路径。
 
 模型执行的 `max_nodes` 预算统计实际读取和规则调用；模型级 `max_comparisons` 统计每次去重成对比较
 及 selector 元素规则调用，读取元素也消耗节点。每项工作开始前检查预算；超限返回

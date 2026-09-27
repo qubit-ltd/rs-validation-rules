@@ -74,8 +74,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `text::AllowedChars` | 按所选字符策略校验。`PrintableUnicode` 允许 Unicode 字母、标记、数字、标点、符号和空格分隔符；拒绝控制、格式、私用区、未分配、行分隔符及段分隔符字符。 |
 | `text::Uri` | 检查 RFC 3986 绝对 URI 的通用语法，接受 `mailto:`、`urn:` 等 scheme；不确认 scheme 是否适合应用、主机是否存在或地址是否可达。 |
 | `collection::ItemCount` | 至少提供一个包含端点的数量边界，边界使用 `usize`；可接受的最大值随目标架构而变。 |
-| `collection::Range<T>` | 对可比较的值检查端点顺序及包含或排除关系；`NaN` 等无法排序的值会被拒绝。端点有序不保证离散类型中存在区间成员，例如开整数区间 `(1, 2)`。 |
-| `collection::UniqueItems` | 通过 `first_duplicate_with_limit(values, max_comparisons)` 查找第一对重复元素；限额约束实际 `PartialEq` 调用次数。模型执行另有独立比较预算。 |
+| `collection::Range<T>` | 对可比较的值检查端点顺序及包含或排除关系；`NaN` 等无法排序的值会被拒绝。端点有序不保证离散类型中存在区间成员，例如开整数区间 `(1, 2)`；`Debug` 输出会隐藏端点值。 |
+| `collection::UniqueItems` | 通过 `first_duplicate_with_limit(values, max_comparisons)` 查找第一对重复元素；限额约束实际 `PartialEq` 调用次数。模型执行另有独立比较预算，并为内建唯一性规则保留 `ids::COLLECTION_UNIQUE`。 |
 | `decimal::DecimalValue` | 启用 `decimal` 后，检查规范化 `BigDecimal` 的小数位数、可选 `DECIMAL(p,s)` 总容量和精确区间端点；不会对输入舍入。 |
 | `time::TimePrecision` | 启用 `time` 后，对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 检查精确的秒、毫秒、微秒或纳秒粒度，不做舍入。 |
 | `identity::ChinaIdentity18Structure` | 启用 `china-identity` 后，检查中国大陆 18 位身份证号码的长度、主体数字、出生日期及校验位；不确认地区码有效或已分配、号码已签发，也不核实持有人身份。 |
@@ -105,7 +105,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 两者都缺省会返回 `BindErrorKind::InvalidBounds`。
 
 `ids` 模块公开 `ids::TEXT_URI` 等内置规则 ID 常量。应用代码引用内置规则时，
-应使用这些常量。
+应使用这些常量。`ids::COLLECTION_UNIQUE` 标识模型内建的序列唯一性规则；它没有
+动态注册适配器，因此不会出现在 `registrations()` 或 inventory 中。
 
 | Feature | 作用 |
 | --- | --- |
