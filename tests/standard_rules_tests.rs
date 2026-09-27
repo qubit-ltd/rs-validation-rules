@@ -79,6 +79,88 @@ fn violation_code(outcome: ValidationOutcome) -> String {
 
 #[cfg(feature = "decimal")]
 #[test]
+fn test_decimal_empty_domain_is_rejected_at_construction() {
+    use std::ops::Bound;
+    use std::str::FromStr;
+
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::decimal::DecimalValue;
+    use qubit_validation_rules::ids;
+    use qubit_validator::BindErrorKind;
+    use qubit_validator::InputType;
+
+    let decimal = |value| BigDecimal::from_str(value).unwrap();
+    let invalid = [
+        (Some(1), 0, Some(Bound::Included(decimal("100"))), None),
+        (Some(1), 0, None, Some(Bound::Included(decimal("-100")))),
+        (
+            None,
+            0,
+            Some(Bound::Excluded(decimal("1"))),
+            Some(Bound::Excluded(decimal("2"))),
+        ),
+        (
+            None,
+            2,
+            Some(Bound::Excluded(decimal("1.230"))),
+            Some(Bound::Excluded(decimal("1.231"))),
+        ),
+    ];
+    for (precision, scale, min, max) in invalid {
+        assert_eq!(
+            DecimalValue::new(precision, scale, min, max).unwrap_err().kind(),
+            BindErrorKind::InvalidBounds
+        );
+    }
+    assert!(
+        DecimalValue::new(
+            None,
+            2,
+            Some(Bound::Included(decimal("1.230"))),
+            Some(Bound::Included(decimal("1.230"))),
+        )
+        .is_ok()
+    );
+    assert!(
+        DecimalValue::new(
+            None,
+            0,
+            Some(Bound::Included(decimal("-1"))),
+            Some(Bound::Included(decimal("1")))
+        )
+        .is_ok()
+    );
+    assert!(DecimalValue::new(None, 2, None, Some(Bound::Excluded(decimal("0")))).is_ok());
+
+    let registry = create_test_registry();
+    let args = [
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(1)),
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
+        NamedValidationArgument::new("min", ValidationArgument::String("100")),
+    ];
+    let error = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+        .unwrap_err();
+    assert_eq!(error.kind(), BindErrorKind::InvalidBounds);
+    assert!(!format!("{error:?}").contains("100"));
+
+    let oversized_min = format!("1{}", "0".repeat(131_072));
+    let oversized_max = format!("2{}", "0".repeat(131_072));
+    let oversized_args = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
+        NamedValidationArgument::new("min", ValidationArgument::String(&oversized_min)),
+        NamedValidationArgument::new("max", ValidationArgument::String(&oversized_max)),
+    ];
+    let oversized_error = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &oversized_args)
+        .unwrap_err();
+    assert_eq!(oversized_error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(oversized_error.parameter(), Some("min"));
+    assert!(!format!("{oversized_error:?}").contains(&oversized_min));
+}
+
+#[cfg(feature = "decimal")]
+#[test]
 fn test_decimal_value_normalization_bounds_and_registration() {
     use std::str::FromStr;
 
@@ -307,11 +389,37 @@ fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
         None,
         0,
         Some(Bound::Included(BigDecimal::from(0))),
-        Some(Bound::Included(value.clone())),
+        Some(Bound::Included(BigDecimal::from(1))),
     )
     .unwrap();
-    assert_eq!(bounded.validate(&value, &()), Ok(()));
-    assert_eq!(bounded.validate(&negative, &()), Err(DecimalValueError::Range));
+    assert_eq!(bounded.validate(&BigDecimal::from(1), &()), Ok(()));
+    assert_eq!(
+        bounded.validate(&BigDecimal::from(-1), &()),
+        Err(DecimalValueError::Range)
+    );
+    assert!(DecimalValue::new(None, 0, None, Some(Bound::Included(value.clone()))).is_ok());
+    assert!(
+        DecimalValue::new(
+            None,
+            0,
+            Some(Bound::Included(BigDecimal::from(0))),
+            Some(Bound::Included(value.clone())),
+        )
+        .is_ok()
+    );
+    let error = DecimalValue::new(
+        None,
+        0,
+        Some(Bound::Included(value)),
+        Some(Bound::Included(BigDecimal::new(20.into(), i64::MIN))),
+    )
+    .expect_err("two extreme endpoints exceed the feasibility work limit");
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("min"));
+    let upper_error = DecimalValue::new(Some(1), 0, None, Some(Bound::Included(tiny_fraction)))
+        .expect_err("an extreme selected upper endpoint exceeds the feasibility work limit");
+    assert_eq!(upper_error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(upper_error.parameter(), Some("max"));
 }
 
 #[cfg(feature = "decimal")]
