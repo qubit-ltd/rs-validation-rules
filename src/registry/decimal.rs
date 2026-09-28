@@ -53,14 +53,12 @@ fn canonical_decimal(value: &str) -> bool {
 /// Invalid syntax or conversion returns a bind error naming the endpoint only.
 fn optional_bound(
     reader: &mut ArgumentReader<'_>,
-    args: &[NamedValidationArgument<'_>],
     name: &str,
     inclusive: bool,
 ) -> Result<Option<Bound<BigDecimal>>, BindError> {
-    if !args.iter().any(|argument| argument.name() == name) {
+    let Some(literal) = reader.optional_str(name)? else {
         return Ok(None);
-    }
-    let literal = reader.required_str(name)?;
+    };
     if !canonical_decimal(literal) {
         return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter(name));
     }
@@ -93,8 +91,8 @@ fn prepare_decimal(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepa
     }
     let min_inclusive = reader.optional_bool("min_inclusive")?.unwrap_or(true);
     let max_inclusive = reader.optional_bool("max_inclusive")?.unwrap_or(true);
-    let min = optional_bound(&mut reader, args, "min", min_inclusive)?;
-    let max = optional_bound(&mut reader, args, "max", max_inclusive)?;
+    let min = optional_bound(&mut reader, "min", min_inclusive)?;
+    let max = optional_bound(&mut reader, "max", max_inclusive)?;
     reader.finish()?;
     let rule = DecimalValue::new(precision, scale, min, max)?;
     Ok(prepare_typed_validator(rule, move |error| match error {

@@ -514,6 +514,37 @@ fn test_registered_decimal_max_bound_is_exact_and_exclusive() {
     );
 }
 
+#[cfg(feature = "decimal")]
+#[test]
+fn test_registered_decimal_optional_min_bound_uses_string_literal() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::ids;
+
+    let registry = create_test_registry();
+    let args = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("min", ValidationArgument::String("1.20")),
+        NamedValidationArgument::new("min_inclusive", ValidationArgument::Bool(false)),
+    ];
+    let rule = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+        .unwrap();
+    let at_min = "1.20".parse::<BigDecimal>().unwrap();
+    let above_min = "1.21".parse::<BigDecimal>().unwrap();
+    assert_eq!(
+        violation_code(
+            rule.validate(ValidationValue::Typed(&at_min), &BoundValidationContext::new(&[]))
+                .unwrap()
+        ),
+        "decimal.range"
+    );
+    assert_eq!(
+        rule.validate(ValidationValue::Typed(&above_min), &BoundValidationContext::new(&[]))
+            .unwrap(),
+        ValidationOutcome::Valid
+    );
+}
+
 #[cfg(feature = "time")]
 #[test]
 fn test_time_precision_every_resolution_on_each_chrono_type_across_utc_day() {
