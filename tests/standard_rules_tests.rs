@@ -161,6 +161,65 @@ fn test_decimal_empty_domain_is_rejected_at_construction() {
 
 #[cfg(feature = "decimal")]
 #[test]
+fn test_decimal_registry_endpoint_cost_and_grid() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::registrations;
+    use qubit_validator::BindErrorKind;
+    use qubit_validator::InputType;
+    use qubit_validator::NamedValidationArgument;
+    use qubit_validator::ValidationArgument;
+    use qubit_validator::ValidatorRegistry;
+
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    let huge = "9".repeat(131_072);
+    for (min, max, parameter) in [
+        (Some(huge.as_str()), None, "min"),
+        (None, Some(huge.as_str()), "max"),
+        (Some("0"), Some(huge.as_str()), "max"),
+    ] {
+        let mut args = vec![NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0))];
+        if let Some(value) = min {
+            args.push(NamedValidationArgument::new("min", ValidationArgument::String(value)));
+        }
+        if let Some(value) = max {
+            args.push(NamedValidationArgument::new("max", ValidationArgument::String(value)));
+        }
+        let error = registry
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+            .unwrap_err();
+        assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+        assert_eq!(error.parameter(), Some(parameter));
+        assert!(!format!("{error:?}").contains(&huge));
+        assert!(!error.to_string().contains(&huge));
+    }
+    let args = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("min", ValidationArgument::String("1.23")),
+        NamedValidationArgument::new("max", ValidationArgument::String("1.24")),
+        NamedValidationArgument::new("min_inclusive", ValidationArgument::Bool(false)),
+    ];
+    assert!(
+        registry
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+            .is_ok()
+    );
+    let invalid = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(3)),
+        NamedValidationArgument::new("min", ValidationArgument::String("10")),
+    ];
+    assert_eq!(
+        registry
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &invalid)
+            .unwrap_err()
+            .kind(),
+        BindErrorKind::InvalidBounds,
+    );
+}
+
+#[cfg(feature = "decimal")]
+#[test]
 fn test_decimal_value_normalization_bounds_and_registration() {
     use std::str::FromStr;
 
@@ -397,16 +456,18 @@ fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
         bounded.validate(&BigDecimal::from(-1), &()),
         Err(DecimalValueError::Range)
     );
-    assert!(DecimalValue::new(None, 0, None, Some(Bound::Included(value.clone()))).is_ok());
-    assert!(
-        DecimalValue::new(
-            None,
-            0,
+    for (min, max, parameter) in [
+        (None, Some(Bound::Included(value.clone())), "max"),
+        (
             Some(Bound::Included(BigDecimal::from(0))),
             Some(Bound::Included(value.clone())),
-        )
-        .is_ok()
-    );
+            "max",
+        ),
+    ] {
+        let error = DecimalValue::new(None, 0, min, max).unwrap_err();
+        assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+        assert_eq!(error.parameter(), Some(parameter));
+    }
     let error = DecimalValue::new(
         None,
         0,
