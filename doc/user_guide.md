@@ -174,15 +174,22 @@ does not need the `inventory` feature for that path.
   exposes the same index-pair order for consumers that own their comparison
   behavior and budgets. Worst-case work is O(n²).
 - `DecimalValue::new(precision, scale, min, max)` validates `BigDecimal` using
-  `DECIMAL(p,s)` capacity: at most `s` fractional digits and `p-s` integer digits.
-  It normalizes representation-only trailing zeros first, so `(3,2)` accepts
-  `1.2300` and rejects `12`. Checks run in scale, precision, range order. Bounds
-  can be inclusive or exclusive. A rule never rounds its input. This intentionally
-  changes the old `(1,0)` behavior that accepted `1e3`. Construction rejects a
-  bound interval with no representable value on the declared scale grid. The
-  feasibility check limits constructed endpoint intermediates to 131,072 digits
-  and reports larger work as `ParameterOutOfRange` with the `min` or `max`
-  parameter name.
+  `DECIMAL(p,s)` capacity: its grid step is `10^(-s)` and its value domain is
+  `[-(10^p-1)×10^(-s), (10^p-1)×10^(-s)]`. Thus `(3,2)` accepts `1.2300`,
+  rejects `12`, and has the domain `[-9.99,9.99]`. It normalizes
+  representation-only trailing zeros before checking input scale and precision;
+  validation order is scale, precision, then range. Bounds can be inclusive or
+  exclusive, and input is never rounded. This intentionally changes the old
+  `(1,0)` behavior that accepted `1e3`. At scale 2, `(1.23,1.24]` is nonempty,
+  while `(1.23,1.24)` is empty. Construction checks every original finite
+  endpoint independently using `coefficient_digits + abs(s-endpoint_scale) + 1`.
+  A cost above 131,072 returns `ParameterOutOfRange(min/max)` before endpoint
+  ordering, precision-domain clipping, or feasibility checks; this also applies
+  to one-sided bounds. The estimate does not cover allocations before literal
+  parsing and does not limit the size of validation inputs. Construction then
+  rejects bounds containing no value on the declared scale grid. Its diagnostic
+  order is scalar relationships, `min` cost, `max` cost, endpoint ordering, then
+  mathematical feasibility. Errors do not retain endpoint values.
 - `TimePrecision::new` supports `Second`, `Millisecond`, `Microsecond`, and
   `Nanosecond` for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`. The
   nanosecond component must divide evenly by the selected unit; no rounding or

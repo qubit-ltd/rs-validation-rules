@@ -154,11 +154,14 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   元素时零预算成功，否则返回 `ComparisonLimitExceeded`。`collection::UniquePairs` 为需要自行
   管理比较行为和预算的调用方提供相同顺序的索引对。最坏复杂度为 O(n²)。
 - `DecimalValue::new(precision, scale, min, max)` 按 `DECIMAL(p,s)` 容量校验 `BigDecimal`：
-  小数最多 `s` 位，整数最多 `p-s` 位。先忽略表示性尾零，因此 `(3,2)` 接受 `1.2300`、拒绝
-  `12`。依次检查 scale、precision、range；上下界可包含或排除端点。规则不会舍入输入。
-  这是有意的破坏性变更：旧版 `(1,0)` 会接受 `1e3`，新版拒绝。构造时还会拒绝声明刻度网格
-  上无解的边界区间。可满足性检查构造的端点中间值最多为 131,072 位，超限时返回带 `min`
-  或 `max` 参数名的 `ParameterOutOfRange`。
+  网格步长为 `10^(-s)`，数值域为 `[-(10^p-1)×10^(-s), (10^p-1)×10^(-s)]`。因此 `(3,2)`
+  接受 `1.2300`、拒绝 `12`，其数值域为 `[-9.99,9.99]`。检查输入时先忽略表示性尾零，依次检查
+  scale、precision、range；上下界可包含或排除端点，规则不会舍入输入。这是有意的破坏性变更：
+  旧版 `(1,0)` 会接受 `1e3`，新版拒绝。scale=2 时 `(1.23,1.24]` 非空，而 `(1.23,1.24)` 为空。
+  构造时每个原始有限端点分别按 `coefficient_digits + abs(s-endpoint_scale) + 1` 检查；成本超过
+  131,072 时，在端点顺序、精度域裁剪或可行性检查前返回 `ParameterOutOfRange(min/max)`，单侧边界
+  同样适用。该估算不包括字面量解析前的分配，也不限制验证输入大小。随后拒绝声明刻度网格上无解
+  的区间。诊断顺序为标量关系、`min` 成本、`max` 成本、端点顺序、数学可行性。错误不会保留端点值。
 - `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
   不舍入，也不调整日期。
