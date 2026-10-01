@@ -11,7 +11,6 @@
 /// Neither variant includes the input or dependency text in its diagnostic.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum MatchesDependencyError {
     /// Slot zero is absent, missing, or not text.
     #[error("required text dependency is missing")]

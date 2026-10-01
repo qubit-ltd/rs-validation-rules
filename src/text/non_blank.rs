@@ -21,7 +21,6 @@ use qubit_validator::Validator;
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum NonBlankError {
     /// The input contains only whitespace or is empty.
     #[error("text is blank")]
@@ -39,7 +38,6 @@ pub enum NonBlankError {
 /// assert!(NonBlank.validate(" \t", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct NonBlank;
 impl Validator<str, ()> for NonBlank {
     /// Blank-input failure emitted when no non-whitespace character is present.

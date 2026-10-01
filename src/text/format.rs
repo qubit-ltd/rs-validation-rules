@@ -22,7 +22,6 @@ use qubit_validator::Validator;
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum TextRuleError {
     /// Text is blank.
     #[error("text is blank")]
@@ -61,7 +60,6 @@ pub enum TextRuleError {
 /// assert!(EmailAscii.validate("user@例子.测试", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct EmailAscii;
 
 impl Validator<str, ()> for EmailAscii {
@@ -126,7 +124,6 @@ impl Validator<str, ()> for EmailAscii {
 /// assert!(Uri.validate("relative/path", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct Uri;
 
 impl Validator<str, ()> for Uri {
@@ -163,7 +160,6 @@ impl Validator<str, ()> for Uri {
 /// assert!(UuidText.validate("550e8400-e29b-41d4-a716-446655440000", &()).is_ok());
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct UuidText;
 
 impl Validator<str, ()> for UuidText {
@@ -212,7 +208,6 @@ impl Validator<str, ()> for UuidText {
 /// assert!(ChinaMobileStructure.validate("13800138000", &()).is_ok());
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct ChinaMobileStructure;
 
 impl Validator<str, ()> for ChinaMobileStructure {

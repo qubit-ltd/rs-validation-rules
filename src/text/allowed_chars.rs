@@ -59,7 +59,6 @@ fn is_printable_unicode(c: char) -> bool {
 /// assert!(rule.validate("key\n1", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub enum CharacterSet {
     /// Any Unicode scalar value.
     Unicode,
@@ -92,7 +91,6 @@ pub enum CharacterSet {
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum AllowedCharsError {
     /// Input contains a character outside the configured profile.
     #[error("invalid characters")]
@@ -112,7 +110,6 @@ pub enum AllowedCharsError {
 /// assert!(rule.validate("hello\n", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct AllowedChars {
     /// Character profile applied to every scalar value in the input.
     set: CharacterSet,

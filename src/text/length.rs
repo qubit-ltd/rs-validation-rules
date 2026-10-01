@@ -47,7 +47,6 @@ fn above_max(count: usize, max: Option<u32>) -> bool {
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum TextLengthError {
     /// The Unicode scalar value count is below `min`.
     #[error("text is too short")]
@@ -75,7 +74,6 @@ pub enum TextLengthError {
 /// assert!(rule.validate("", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct CharLength {
     /// Inclusive minimum scalar-value count, when configured.
     min: Option<u32>,
@@ -147,7 +145,6 @@ impl Validator<str, ()> for CharLength {
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum ByteLengthError {
     /// The UTF-8 byte count is below `min`.
     #[error("text has too few bytes")]
@@ -175,7 +172,6 @@ pub enum ByteLengthError {
 /// assert!(rule.validate("éé", &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct ByteLength {
     /// Inclusive minimum UTF-8 byte count, when configured.
     min: Option<u32>,

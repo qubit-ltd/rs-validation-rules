@@ -23,7 +23,6 @@ use qubit_validator::Validator;
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
-// qubit-style: allow public-type-layout
 pub enum ChinaIdentityError {
     /// The input is not exactly 18 bytes long.
     #[error("invalid length")]
@@ -67,7 +66,6 @@ pub enum ChinaIdentityError {
 /// assert_eq!(facts.birth_date().to_string(), "1949-12-31");
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct ChinaIdentityFacts {
     /// Calendar date parsed from the identity number's birth-date digits.
     birth_date: NaiveDate,
@@ -100,7 +98,6 @@ impl ChinaIdentityFacts {
 /// assert_eq!(facts.birth_date().to_string(), "1949-12-31");
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// qubit-style: allow public-type-layout
 pub struct ChinaIdentity18Structure;
 impl ChinaIdentity18Structure {
     /// Parses `value` and returns its encoded birth date when the structure is
