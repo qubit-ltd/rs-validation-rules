@@ -1,0 +1,1 @@
+profiles = ["cargo-matrix-default", "ci-default", "pages-default"]
