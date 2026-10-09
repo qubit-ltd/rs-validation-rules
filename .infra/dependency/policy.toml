@@ -1,3 +1,2 @@
-format = 2
-baseline = "v2026.10.06"
+format = 3
 internal-prefixes = ["qubit-"]
