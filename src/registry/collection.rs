@@ -12,7 +12,6 @@ use qubit_validator::ArgumentReader;
 use qubit_validator::BindError;
 use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
-use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorDescriptor;
@@ -34,20 +33,18 @@ const EMPTY_DEPS: &[DependencySpec] = &[];
 /// Binds at least one collection-size bound.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the count rule.
+/// - `reader`: Shared reader for the optional `min` and `max` bounds.
 ///
 /// # Returns
 /// A prepared count validator configured with the supplied optional bounds.
 ///
 /// # Errors
-/// Returns a bind error when both bounds are absent, an argument is invalid or
-/// out of range, or an unexpected argument is supplied.
-fn prepare_item_count(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    let mut reader = ArgumentReader::new(args)?;
+/// Returns a bind error when both bounds are absent or a bound is invalid or
+/// out of range. The binding flow reports duplicate and unknown parameters.
+fn prepare_item_count(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let min = reader.optional_usize("min")?;
     let max = reader.optional_usize("max")?;
     let rule = ItemCount::new(min, max)?;
-    reader.finish()?;
     Ok(prepare_typed_validator(rule, |error| match error {
         ItemCountError::TooSmall { min } => ViolationDraft::new(ViolationCode::new("collection.too_small"))
             .with_param("bound", ViolationParam::Unsigned(min as u128)),

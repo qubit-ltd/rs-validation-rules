@@ -14,6 +14,7 @@ use qubit_validation_rules::text::EmailAscii;
 use qubit_validation_rules::text::MatchesDependency;
 use qubit_validation_rules::text::MatchesDependencyError;
 use qubit_validation_rules::text::Uri;
+use qubit_validator::ArgumentReader;
 use qubit_validator::BoundValidationContext;
 use qubit_validator::ExecutionErrorKind;
 use qubit_validator::InputType;
@@ -208,7 +209,8 @@ fn test_matches_dependency_prepared_adapter_preserves_missing_dependency_error()
         .find(|registration| registration.id().as_str() == "qubit.rules.text.matches_dependency")
         .expect("dependency rule is registered");
     let signature = registration.descriptor().signatures()[0];
-    let prepared = (signature.prepare())(&[]).expect("dependency rule prepares");
+    let mut reader = ArgumentReader::new(&[]).expect("empty arguments are valid");
+    let prepared = (signature.prepare())(&mut reader).expect("dependency rule prepares");
     let error = prepared
         .validate(
             ValidationValue::Text("private-input"),

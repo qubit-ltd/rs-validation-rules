@@ -16,7 +16,6 @@ use qubit_validator::BindError;
 use qubit_validator::BindErrorKind;
 use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
-use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorDescriptor;
@@ -71,9 +70,16 @@ fn optional_bound(
     }))
 }
 
-/// Decodes scalar arguments once and prepares the typed decimal adapter.
-fn prepare_decimal(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    let mut reader = ArgumentReader::new(args)?;
+/// Decodes decimal parameters and prepares the typed decimal adapter.
+///
+/// # Parameters
+/// - `reader`: Shared reader for scale, precision, and optional bounds.
+///
+/// # Errors
+/// Returns a bind error for missing, invalid, or out-of-range decimal
+/// parameters or invalid bounds. The binding flow reports duplicate and
+/// unknown parameters.
+fn prepare_decimal(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let precision = reader
         .optional_u32("precision")?
         .map(|value| {
@@ -91,9 +97,8 @@ fn prepare_decimal(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepa
     }
     let min_inclusive = reader.optional_bool("min_inclusive")?.unwrap_or(true);
     let max_inclusive = reader.optional_bool("max_inclusive")?.unwrap_or(true);
-    let min = optional_bound(&mut reader, "min", min_inclusive)?;
-    let max = optional_bound(&mut reader, "max", max_inclusive)?;
-    reader.finish()?;
+    let min = optional_bound(reader, "min", min_inclusive)?;
+    let max = optional_bound(reader, "max", max_inclusive)?;
     let rule = DecimalValue::new(precision, scale, min, max)?;
     Ok(prepare_typed_validator(rule, move |error| match error {
         DecimalValueError::Scale => ViolationDraft::new(ViolationCode::new("decimal.scale"))

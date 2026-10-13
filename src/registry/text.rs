@@ -15,7 +15,6 @@ use qubit_validator::DependencySpec;
 use qubit_validator::ExecutionError;
 use qubit_validator::ExecutionErrorKind;
 use qubit_validator::InputType;
-use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedOutcome;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
@@ -46,32 +45,25 @@ use crate::text::TextLengthError;
 use crate::text::Uri;
 use crate::text::UuidText;
 
-/// Rejects any arguments for a parameterless rule.
+/// Leaves the shared argument reader untouched for a parameterless rule.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied to the rule.
-///
-/// # Returns
-/// `Ok(())` when no arguments remain unread.
-///
-/// # Errors
-/// Returns a bind error when any argument is supplied.
-pub(super) fn no_args(args: &[NamedValidationArgument<'_>]) -> Result<(), BindError> {
-    ArgumentReader::new(args)?.finish()
-}
+/// - `reader`: Shared reader whose unused arguments are checked by the binding flow.
+pub(super) fn no_args(_reader: &mut ArgumentReader<'_>) {}
 
 /// Binds a non-blank rule with no arguments.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the rule.
+/// - `reader`: Shared argument reader left untouched by this rule.
 ///
 /// # Returns
 /// A prepared text validator for the non-blank rule.
 ///
 /// # Errors
-/// Returns a bind error when an argument is supplied.
-fn prepare_non_blank(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
+/// This factory has no error path. The binding flow reports duplicate and
+/// unknown parameters.
+fn prepare_non_blank(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(reader);
     Ok(prepare_text_validator(NonBlank, |_| {
         ViolationDraft::new(ViolationCode::new("text.blank"))
     }))
@@ -80,18 +72,16 @@ fn prepare_non_blank(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Pre
 /// Binds at least one Unicode scalar-value length bound.
 ///
 /// # Parameters
-/// - `args`: Named arguments containing optional `min` and `max` bounds.
+/// - `reader`: Shared reader for optional `min` and `max` bounds.
 ///
 /// # Returns
 /// A prepared text validator using Unicode scalar-value bounds.
 ///
 /// # Errors
-/// Returns a bind error when both bounds are absent, a bound is invalid, or an
-/// unexpected argument is supplied.
-fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    let mut reader = ArgumentReader::new(args)?;
+/// Returns a bind error when both bounds are absent or a bound is invalid.
+/// The binding flow reports duplicate and unknown parameters.
+fn prepare_char_length(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let rule = CharLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
-    reader.finish()?;
     Ok(prepare_text_validator(rule, |error| match error {
         TextLengthError::TooShort { min } => ViolationDraft::new(ViolationCode::new("text.too_short"))
             .with_param("bound", ViolationParam::Unsigned(min.into())),
@@ -103,18 +93,16 @@ fn prepare_char_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn P
 /// Binds at least one UTF-8 byte-length bound.
 ///
 /// # Parameters
-/// - `args`: Named arguments containing optional `min` and `max` bounds.
+/// - `reader`: Shared reader for optional `min` and `max` bounds.
 ///
 /// # Returns
 /// A prepared text validator using UTF-8 byte bounds.
 ///
 /// # Errors
-/// Returns a bind error when both bounds are absent, a bound is invalid, or an
-/// unexpected argument is supplied.
-fn prepare_byte_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    let mut reader = ArgumentReader::new(args)?;
+/// Returns a bind error when both bounds are absent or a bound is invalid.
+/// The binding flow reports duplicate and unknown parameters.
+fn prepare_byte_length(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let rule = ByteLength::new(reader.optional_u32("min")?, reader.optional_u32("max")?)?;
-    reader.finish()?;
     Ok(prepare_text_validator(rule, |error| match error {
         ByteLengthError::TooFewBytes { min } => ViolationDraft::new(ViolationCode::new("text.too_few_bytes"))
             .with_param("bound", ViolationParam::Unsigned(min.into())),
@@ -126,16 +114,15 @@ fn prepare_byte_length(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn P
 /// Binds a required character-set profile.
 ///
 /// # Parameters
-/// - `args`: Named arguments containing the required `set` profile.
+/// - `reader`: Shared reader for the required `set` profile.
 ///
 /// # Returns
 /// A prepared text validator using the selected character profile.
 ///
 /// # Errors
-/// Returns a bind error when the profile name is unknown or an unexpected
-/// argument is supplied.
-fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    let mut reader = ArgumentReader::new(args)?;
+/// Returns a bind error when the profile is missing or unknown. The binding
+/// flow reports duplicate and unknown parameters.
+fn prepare_allowed_chars(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let set = match reader.required_str("set")? {
         "unicode" => CharacterSet::Unicode,
         "printable_unicode" => CharacterSet::PrintableUnicode,
@@ -146,7 +133,6 @@ fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn
             return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter("set"));
         }
     };
-    reader.finish()?;
     Ok(prepare_text_validator(AllowedChars::new(set), |_| {
         ViolationDraft::new(ViolationCode::new("text.disallowed_characters"))
     }))
@@ -155,15 +141,16 @@ fn prepare_allowed_chars(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn
 /// Binds an ASCII email profile with no arguments.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the rule.
+/// - `reader`: Shared argument reader left untouched by this rule.
 ///
 /// # Returns
 /// A prepared text validator for the ASCII email profile.
 ///
 /// # Errors
-/// Returns a bind error when an argument is supplied.
-fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
+/// This factory has no error path. The binding flow reports duplicate and
+/// unknown parameters.
+fn prepare_email(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(reader);
     Ok(prepare_text_validator(EmailAscii, |_| {
         ViolationDraft::new(ViolationCode::new("text.email"))
     }))
@@ -172,15 +159,16 @@ fn prepare_email(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepare
 /// Binds a rule that compares its input with the declared dependency.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the rule.
+/// - `reader`: Shared argument reader left untouched by this rule.
 ///
 /// # Returns
 /// A prepared contextual text validator for the first declared dependency.
 ///
 /// # Errors
-/// Returns a bind error when an argument is supplied.
-fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
+/// This factory has no bind error path. The binding flow reports duplicate
+/// and unknown parameters.
+fn prepare_matches_dependency(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(reader);
     Ok(prepare_text_with_context(
         MATCHES_DEPENDENCY_DEPS,
         |text, context| match MatchesDependency.validate(text, context) {
@@ -197,15 +185,16 @@ fn prepare_matches_dependency(args: &[NamedValidationArgument<'_>]) -> Result<Ar
 /// Binds a mainland China mobile-number structure rule.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the rule.
+/// - `reader`: Shared argument reader left untouched by this rule.
 ///
 /// # Returns
 /// A prepared text validator for the mobile-number structure profile.
 ///
 /// # Errors
-/// Returns a bind error when an argument is supplied.
-fn prepare_mobile(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
+/// This factory has no error path. The binding flow reports duplicate and
+/// unknown parameters.
+fn prepare_mobile(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(reader);
     Ok(prepare_text_validator(ChinaMobileStructure, |_| {
         ViolationDraft::new(ViolationCode::new("text.mobile"))
     }))
@@ -213,15 +202,16 @@ fn prepare_mobile(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn Prepar
 /// Binds an absolute URI profile with no arguments.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the rule.
+/// - `reader`: Shared argument reader left untouched by this rule.
 ///
 /// # Returns
 /// A prepared text validator for absolute URI syntax.
 ///
 /// # Errors
-/// Returns a bind error when an argument is supplied.
-fn prepare_uri(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
+/// This factory has no error path. The binding flow reports duplicate and
+/// unknown parameters.
+fn prepare_uri(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(reader);
     Ok(prepare_text_validator(Uri, |_| {
         ViolationDraft::new(ViolationCode::new("text.uri"))
     }))
@@ -229,15 +219,16 @@ fn prepare_uri(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedV
 /// Binds a canonical UUID text profile with no arguments.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the rule.
+/// - `reader`: Shared argument reader left untouched by this rule.
 ///
 /// # Returns
 /// A prepared text validator for canonical UUID text.
 ///
 /// # Errors
-/// Returns a bind error when an argument is supplied.
-fn prepare_uuid(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    no_args(args)?;
+/// This factory has no error path. The binding flow reports duplicate and
+/// unknown parameters.
+fn prepare_uuid(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
+    no_args(reader);
     Ok(prepare_text_validator(UuidText, |_| {
         ViolationDraft::new(ViolationCode::new("text.uuid"))
     }))
