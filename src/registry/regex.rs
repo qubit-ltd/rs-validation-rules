@@ -12,7 +12,6 @@ use qubit_validator::ArgumentReader;
 use qubit_validator::BindError;
 use qubit_validator::DependencySpec;
 use qubit_validator::InputType;
-use qubit_validator::NamedValidationArgument;
 use qubit_validator::PreparedValidator;
 use qubit_validator::RegistrationSource;
 use qubit_validator::ValidatorDescriptor;
@@ -32,18 +31,17 @@ const EMPTY_DEPS: &[DependencySpec] = &[];
 /// Compiles the required full-string regex pattern.
 ///
 /// # Parameters
-/// - `args`: Named arguments supplied while binding the regex rule.
+/// - `reader`: Shared reader for the required `pattern` parameter.
 ///
 /// # Returns
 /// A prepared full-string regex validator.
 ///
 /// # Errors
-/// Returns a bind error for a missing, invalid, or unexpected argument.
+/// Returns a bind error for a missing or invalid pattern. The binding flow
+/// reports duplicate and unknown parameters.
 #[cfg(feature = "regex")]
-fn prepare_regex(args: &[NamedValidationArgument<'_>]) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    let mut reader = ArgumentReader::new(args)?;
+fn prepare_regex(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     let pattern = reader.required_str("pattern")?;
-    reader.finish()?;
     Ok(prepare_text_validator(RegexMatch::new(pattern)?, |_| {
         ViolationDraft::new(ViolationCode::new("text.pattern"))
     }))
