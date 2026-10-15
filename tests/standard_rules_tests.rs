@@ -220,6 +220,45 @@ fn test_decimal_registry_endpoint_cost_and_grid() {
 
 #[cfg(feature = "decimal")]
 #[test]
+fn test_decimal_registry_endpoint_literal_length() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::registrations;
+    use qubit_validator::BindErrorKind;
+    use qubit_validator::InputType;
+    use qubit_validator::NamedValidationArgument;
+    use qubit_validator::ValidationArgument;
+    use qubit_validator::ValidatorRegistry;
+
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    let oversized = format!("{}!", "9".repeat(131_072));
+    for parameter in ["min", "max"] {
+        let args = [
+            NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
+            NamedValidationArgument::new(parameter, ValidationArgument::String(&oversized)),
+        ];
+        let error = registry
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+            .unwrap_err();
+        assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+        assert_eq!(error.parameter(), Some(parameter));
+        assert!(!format!("{error:?}").contains(&oversized));
+        assert!(!error.to_string().contains(&oversized));
+    }
+
+    let args = [
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+        NamedValidationArgument::new("min", ValidationArgument::String("1.23")),
+    ];
+    assert!(
+        registry
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+            .is_ok()
+    );
+}
+
+#[cfg(feature = "decimal")]
+#[test]
 fn test_decimal_value_normalization_bounds_and_registration() {
     use std::str::FromStr;
 

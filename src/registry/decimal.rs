@@ -33,6 +33,17 @@ use crate::decimal::DecimalValue;
 use crate::decimal::DecimalValueError;
 
 const EMPTY_DEPS: &[DependencySpec] = &[];
+const MAX_DECIMAL_ENDPOINT_LITERAL_BYTES: usize = 131_072;
+
+/// Checks the UTF-8 byte length of a dynamic endpoint before parsing it.
+///
+/// Overlong inputs return a parameter-only error without retaining the literal.
+fn check_endpoint_literal_length(literal: &str, name: &str) -> Result<(), BindError> {
+    if literal.len() > MAX_DECIMAL_ENDPOINT_LITERAL_BYTES {
+        return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter(name));
+    }
+    Ok(())
+}
 
 /// Accepts the decimal literal syntax used by model metadata declarations.
 fn canonical_decimal(value: &str) -> bool {
@@ -58,6 +69,7 @@ fn optional_bound(
     let Some(literal) = reader.optional_str(name)? else {
         return Ok(None);
     };
+    check_endpoint_literal_length(literal, name)?;
     if !canonical_decimal(literal) {
         return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter(name));
     }
@@ -124,3 +136,16 @@ pub(super) const REG_DECIMAL: ValidatorRegistration = ValidatorRegistration::new
 );
 #[cfg(feature = "inventory")]
 register_validator!(registration = REG_DECIMAL);
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_endpoint_literal_length() {
+        let at_limit = "9".repeat(131_072);
+        assert!(super::check_endpoint_literal_length(&at_limit, "min").is_ok());
+        let over_limit = format!("{}!", at_limit);
+        let error = super::check_endpoint_literal_length(&over_limit, "min").unwrap_err();
+        assert_eq!(error.kind(), qubit_validator::BindErrorKind::ParameterOutOfRange);
+        assert_eq!(error.parameter(), Some("min"));
+    }
+}
