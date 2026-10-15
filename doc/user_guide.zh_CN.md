@@ -160,7 +160,11 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   旧版 `(1,0)` 会接受 `1e3`，新版拒绝。scale=2 时 `(1.23,1.24]` 非空，而 `(1.23,1.24)` 为空。
   构造时每个原始有限端点分别按 `coefficient_digits + abs(s-endpoint_scale) + 1` 检查；成本超过
   131,072 时，在端点顺序、精度域裁剪或可行性检查前返回 `ParameterOutOfRange(min/max)`，单侧边界
-  同样适用。该估算不包括字面量解析前的分配，也不限制验证输入大小。随后拒绝声明刻度网格上无解
+  同样适用。该估算不包括字面量解析前的分配，也不限制验证输入大小。动态注册时，每个已声明的
+  `min` 或 `max` 字符串还会单独受 131,072 个 UTF-8 字节上限约束；超长字面量会在语法扫描和
+  `BigDecimal` 解析前以 `ParameterOutOfRange(min/max)` 拒绝。这个原始字符串限制与上述 131,072
+  位端点成本限制不同，也不适用于类型化构造函数 `DecimalValue::new`。未超字节上限的字面量仍可能因
+  语法、端点成本、边界顺序或网格无解而失败。随后拒绝声明刻度网格上无解
   的区间。诊断顺序为标量关系、`min` 成本、`max` 成本、端点顺序、数学可行性。错误不会保留端点值。
 - `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
@@ -184,7 +188,7 @@ Map 数量违规使用字段路径。
 及 selector 元素规则调用，读取元素也消耗节点。每项工作开始前检查预算；超限返回
 `TraversalLimit` 和部分报告。去重最坏需要 O(n²) 次比较。这些预算属于模型执行，
 不作用于直接调用的类型化规则。该后端仍不支持 selector 内的标准约束、Map key/value 遍历
-及未知集合形状。构建计划前请查阅 metadata 的[执行矩阵](../../rs-model-metadata/doc/user_guide.zh_CN.md#限制执行范围与构建拒绝)。
+及未知集合形状。构建计划前请查阅 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
 
 ## 错误与诊断
 
@@ -235,4 +239,4 @@ Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`
 
 - [中文 README](../README.zh_CN.md) 和 [English user guide](user_guide.md)
 - [API 文档](https://docs.rs/qubit-validation-rules)
-- 注册表与校验模型详见 [qubit-validator README](../../rs-validator/README.zh_CN.md)
+- 注册表与校验模型详见 [qubit-validator README](https://github.com/qubit-ltd/rs-validator/blob/main/README.zh_CN.md)

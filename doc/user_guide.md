@@ -186,7 +186,14 @@ does not need the `inventory` feature for that path.
   A cost above 131,072 returns `ParameterOutOfRange(min/max)` before endpoint
   ordering, precision-domain clipping, or feasibility checks; this also applies
   to one-sided bounds. The estimate does not cover allocations before literal
-  parsing and does not limit the size of validation inputs. Construction then
+  parsing and does not limit the size of validation inputs. For dynamic registry
+  bindings, each declared `min` or `max` string is first limited to 131,072 UTF-8
+  bytes: longer literals fail with `ParameterOutOfRange(min/max)` before syntax
+  scanning or `BigDecimal` parsing. This raw-string limit is separate from the
+  131,072 endpoint-cost limit above and does not apply to the typed
+  `DecimalValue::new` constructor. A literal within the byte limit can still fail
+  syntax validation, endpoint-cost validation, bound ordering, or grid
+  feasibility checks. Construction then
   rejects bounds containing no value on the declared scale grid. Its diagnostic
   order is scalar relationships, `min` cost, `max` cost, endpoint ordering, then
   mathematical feasibility. Errors do not retain endpoint values.
@@ -221,7 +228,7 @@ and exhaustion returns `TraversalLimit` with a partial report. Uniqueness can
 require O(n²) comparisons. These budgets belong to model execution, not direct
 typed-rule calls. Standard constraints inside selectors, Map key/value
 traversal, and unknown collection shapes remain unsupported. Consult the
-metadata [execution support matrix](../../rs-model-metadata/doc/user_guide.md#limitations-execution-support-and-explicit-refusal)
+metadata [execution support matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md)
 before building a plan.
 
 ## Errors and Diagnostics
@@ -282,5 +289,5 @@ programmatic handling rather than parsing display strings.
 
 - [README](../README.md) and [简体中文用户手册](user_guide.zh_CN.md)
 - [API documentation](https://docs.rs/qubit-validation-rules)
-- [qubit-validator README](../../rs-validator/README.md) for registry and
+- [qubit-validator README](https://github.com/qubit-ltd/rs-validator/blob/main/README.md) for registry and
   validation model details

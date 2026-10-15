@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `collection::ItemCount` | 至少提供一个包含端点的数量边界，边界使用 `usize`；可接受的最大值随目标架构而变。 |
 | `collection::Range<T>` | 对可比较的值检查端点顺序及包含或排除关系；`NaN` 等无法排序的值会被拒绝。端点有序不保证离散类型中存在区间成员，例如开整数区间 `(1, 2)`；`Debug` 输出会隐藏端点值。 |
 | `collection::UniqueItems` | 通过 `first_duplicate_with_limit(values, max_comparisons)` 查找第一对重复元素；`collection::UniquePairs` 暴露共享的 `(first, second)` 搜索顺序，但不比较值。限额约束实际 `PartialEq` 调用次数。模型执行另有独立比较预算，并为内建唯一性规则保留 `ids::COLLECTION_UNIQUE`。 |
-| `decimal::DecimalValue` | 启用 `decimal` 后，检查规范化 `BigDecimal` 的小数位数、可选 `DECIMAL(p,s)` 容量和精确区间端点。网格步长为 `10^(-s)`，数值域为 `[-(10^p-1)×10^(-s), (10^p-1)×10^(-s)]`；scale=2 时 `(1.23,1.24]` 非空，而 `(1.23,1.24)` 为空。每个原始有限端点分别按 `coefficient_digits + abs(s-endpoint_scale) + 1` 检查；成本超过 131,072 时，在端点比较、裁剪或可行性检查前返回 `ParameterOutOfRange(min/max)`，单侧边界同样适用。该估算不包括字面量解析前的分配，也不限制验证输入大小。规则不会舍入输入。 |
+| `decimal::DecimalValue` | 启用 `decimal` 后，检查规范化 `BigDecimal` 的小数位数、可选 `DECIMAL(p,s)` 容量和精确区间端点。网格步长为 `10^(-s)`，数值域为 `[-(10^p-1)×10^(-s), (10^p-1)×10^(-s)]`；scale=2 时 `(1.23,1.24]` 非空，而 `(1.23,1.24)` 为空。每个原始有限端点分别按 `coefficient_digits + abs(s-endpoint_scale) + 1` 检查；成本超过 131,072 时，在端点比较、裁剪或可行性检查前返回 `ParameterOutOfRange(min/max)`，单侧边界同样适用。该估算不包括字面量解析前的分配，也不限制验证输入大小。动态注册还会在解析前拒绝超过 131,072 个 UTF-8 字节的 `min`/`max` 字面量；此字符串限制不适用于类型化构造函数 `DecimalValue::new`。规则不会舍入输入。 |
 | `time::TimePrecision` | 启用 `time` 后，对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 检查精确的秒、毫秒、微秒或纳秒粒度，不做舍入。 |
 | `identity::ChinaIdentity18Structure` | 启用 `china-identity` 后，检查中国大陆 18 位身份证号码的长度、主体数字、出生日期及校验位；不确认地区码有效或已分配、号码已签发，也不核实持有人身份。 |
 
@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 `ItemCount`；外层 sequence `unique_items` 使用生成的元素相等性适配器，并非通用注册规则。
 模型计划在构建阶段检查适配器和具体类型。`max_nodes` 限制读取与规则调用，
 `max_comparisons` 限制序列元素成对比较。该后端仍不执行 selector 内的标准约束，
-也不遍历 Map key/value。准确范围见 metadata 的[执行矩阵](../rs-model-metadata/doc/user_guide.zh_CN.md#限制执行范围与构建拒绝)。
+也不遍历 Map key/value。准确范围见 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
 
 ## 注册方式与功能开关
 
