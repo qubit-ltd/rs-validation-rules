@@ -48,6 +48,14 @@ fn satisfies_bounds(value: &BigDecimal, min: &Option<Bound<BigDecimal>>, max: &O
     above_min && below_max
 }
 
+/// Determines whether the configured interval contains a value on the scale
+/// grid.
+///
+/// The search first clips the interval to the precision domain, then rounds a
+/// candidate up from the lower bound or down from the upper bound and checks it
+/// against the original inclusive or exclusive bounds. `Ok(false)` means no
+/// representable value exists; `Err` means feasibility calculations exceeded
+/// their supported range.
 fn has_representable_value(
     precision: Option<u16>,
     scale: u16,
@@ -151,6 +159,23 @@ impl DecimalValue {
     /// (10^p - 1) * 10^-s]`, where `p` is precision and `s` is scale.
     /// Representation-only trailing fractional zeros do not consume scale.
     ///
+    /// This API accepts already-parsed [`BigDecimal`] endpoints. The byte limit
+    /// applied to dynamic registration's endpoint strings does not apply here.
+    ///
+    /// # Parameters
+    ///
+    /// - `precision`: Maximum total precision, or `None` for no precision cap.
+    /// - `scale`: Maximum normalized fractional scale and the decimal grid used
+    ///   when determining whether the bounds contain a representable value.
+    /// - `min`: Optional inclusive or exclusive lower endpoint; `None` or
+    ///   `Some(Bound::Unbounded)` leaves the lower side unbounded.
+    /// - `max`: Optional inclusive or exclusive upper endpoint; `None` or
+    ///   `Some(Bound::Unbounded)` leaves the upper side unbounded.
+    ///
+    /// # Returns
+    ///
+    /// Returns a rule containing the validated precision, scale, and bounds.
+    ///
     /// # Errors
     /// Rejects zero precision, scale greater than precision, invalid bounds,
     /// and intervals containing no value on the declared scale grid. After
@@ -159,6 +184,32 @@ impl DecimalValue {
     /// rejects endpoint calculations above 131,072 decimal digits; it is not a
     /// general input or runtime resource limit. Errors do not retain endpoint
     /// values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::ops::Bound;
+    /// use std::str::FromStr;
+    ///
+    /// use bigdecimal::BigDecimal;
+    /// use qubit_validation_rules::decimal::DecimalValue;
+    /// use qubit_validator::BindErrorKind;
+    ///
+    /// let decimal = |s| BigDecimal::from_str(s).expect("decimal literal");
+    /// let nonempty = DecimalValue::new(
+    ///     Some(3), 2,
+    ///     Some(Bound::Excluded(decimal("1.23"))),
+    ///     Some(Bound::Included(decimal("1.24"))),
+    /// );
+    /// assert!(nonempty.is_ok());
+    ///
+    /// let empty = DecimalValue::new(
+    ///     Some(3), 2,
+    ///     Some(Bound::Excluded(decimal("1.23"))),
+    ///     Some(Bound::Excluded(decimal("1.24"))),
+    /// );
+    /// assert_eq!(empty.unwrap_err().kind(), BindErrorKind::InvalidBounds);
+    /// ```
     pub fn new(
         precision: Option<u16>,
         scale: u16,
