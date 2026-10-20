@@ -57,9 +57,10 @@ fn read_rule(reader: &mut ArgumentReader<'_>) -> Result<TimePrecision, BindError
 /// missing or invalid precision; the binding flow checks duplicate and unknown
 /// parameters.
 fn prepare_utc(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    Ok(prepare_typed_validator::<DateTime<Utc>, _, _>(read_rule(reader)?, |_| {
-        ViolationDraft::new(ViolationCode::new("time.precision"))
-    }))
+    Ok(prepare_typed_validator::<DateTime<Utc>, _, _>(
+        read_rule(reader)?,
+        |_| ViolationDraft::new(ViolationCode::new("time.precision")),
+    ))
 }
 
 /// Prepares the date-time signature without a timezone.
@@ -68,9 +69,10 @@ fn prepare_utc(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValida
 /// missing or invalid precision; the binding flow checks duplicate and unknown
 /// parameters.
 fn prepare_date_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    Ok(prepare_typed_validator::<NaiveDateTime, _, _>(read_rule(reader)?, |_| {
-        ViolationDraft::new(ViolationCode::new("time.precision"))
-    }))
+    Ok(prepare_typed_validator::<NaiveDateTime, _, _>(
+        read_rule(reader)?,
+        |_| ViolationDraft::new(ViolationCode::new("time.precision")),
+    ))
 }
 
 /// Prepares the time-of-day signature.

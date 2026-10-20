@@ -48,7 +48,8 @@ use crate::text::UuidText;
 /// Leaves the shared argument reader untouched for a parameterless rule.
 ///
 /// # Parameters
-/// - `reader`: Shared reader whose unused arguments are checked by the binding flow.
+/// - `reader`: Shared reader whose unused arguments are checked by the binding
+///   flow.
 pub(super) fn no_args(_reader: &mut ArgumentReader<'_>) {}
 
 /// Binds a non-blank rule with no arguments.
