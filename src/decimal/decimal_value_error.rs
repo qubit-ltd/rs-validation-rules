@@ -7,6 +7,7 @@
 // =============================================================================
 
 /// A failed decimal constraint, without the input or endpoint value.
+#[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum DecimalValueError {
     /// The normalized value has too many fractional places.

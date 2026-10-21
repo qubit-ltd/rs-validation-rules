@@ -13,6 +13,15 @@
 /// Pairs are emitted by increasing second index, then increasing first index.
 /// Iterating a sequence of `len` items takes O(len²) time and O(1) space. This
 /// iterator only produces indices; it does not access or compare elements.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::collection::UniquePairs;
+///
+/// let pairs = UniquePairs::new(3).collect::<Vec<_>>();
+/// assert_eq!(pairs, [(0, 1), (0, 2), (1, 2)]);
+/// ```
 #[derive(Debug, Clone)]
 pub struct UniquePairs {
     len: usize,
@@ -22,6 +31,8 @@ pub struct UniquePairs {
 
 impl UniquePairs {
     /// Creates an iterator over the unique pairs in a sequence of `len` items.
+    #[must_use]
+    #[inline]
     pub const fn new(len: usize) -> Self {
         Self {
             len,
@@ -34,6 +45,7 @@ impl UniquePairs {
 impl Iterator for UniquePairs {
     type Item = (usize, usize);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.second >= self.len {
             return None;

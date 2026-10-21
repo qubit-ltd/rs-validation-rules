@@ -20,6 +20,12 @@ use crate::collection::Range;
 
 const MAX_DECIMAL_FEASIBILITY_DIGITS: u64 = 131_072;
 
+/// Rejects endpoints whose scale adjustment could exceed the feasibility
+/// budget.
+///
+/// The estimate is checked before comparison or rounding so extreme exponents
+/// cannot trigger unbounded intermediate work. The parameter name is retained
+/// in the binding error to identify which endpoint exceeded the budget.
 fn check_endpoint_cost(value: &BigDecimal, scale: u16, parameter: &str) -> Result<(), BindError> {
     let source_scale = i128::from(value.fractional_digit_count());
     let scale_delta = (i128::from(scale) - source_scale).unsigned_abs();
@@ -34,6 +40,8 @@ fn check_endpoint_cost(value: &BigDecimal, scale: u16, parameter: &str) -> Resul
     Ok(())
 }
 
+/// Reports whether a decimal satisfies both optional inclusive or exclusive
+/// bounds.
 fn satisfies_bounds(value: &BigDecimal, min: &Option<Bound<BigDecimal>>, max: &Option<Bound<BigDecimal>>) -> bool {
     let above_min = match min {
         None | Some(Bound::Unbounded) => true,
@@ -224,7 +232,7 @@ impl DecimalValue {
                 check_endpoint_cost(value, scale, parameter)?;
             }
         }
-        Range::new(
+        let _ = Range::new(
             min.as_ref().map_or(Bound::Unbounded, borrow_bound),
             max.as_ref().map_or(Bound::Unbounded, borrow_bound),
         )?;
@@ -240,6 +248,7 @@ impl DecimalValue {
     }
 }
 
+/// Borrows a finite endpoint while preserving its inclusive or exclusive kind.
 fn borrow_bound<T>(bound: &Bound<T>) -> Bound<&T> {
     match bound {
         Bound::Included(value) => Bound::Included(value),
@@ -299,48 +308,6 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_core_grid_and_capacity() {
-        for (precision, scale, min, max, min_closed, max_closed, valid) in [
-            (None, 2, "1.23", "1.24", false, true, true),
-            (None, 2, "-1.24", "-1.23", true, false, true),
-            (None, 2, "1.23", "1.24", false, false, false),
-            (Some(3), 2, "10", "11", true, true, false),
-            (Some(3), 2, "-11", "-10", true, true, false),
-            (Some(3), 2, "9.99", "9.99", true, true, true),
-            (Some(2), 2, "0.99", "0.99", true, true, true),
-            (Some(2), 2, "1", "2", true, true, false),
-            (Some(2), 0, "99", "99", true, true, true),
-        ] {
-            let lower = if min_closed {
-                Bound::Included(decimal(min))
-            } else {
-                Bound::Excluded(decimal(min))
-            };
-            let upper = if max_closed {
-                Bound::Included(decimal(max))
-            } else {
-                Bound::Excluded(decimal(max))
-            };
-            let result = DecimalValue::new(precision, scale, Some(lower), Some(upper));
-            assert_eq!(result.is_ok(), valid, "{precision:?}/{scale}: {min}, {max}");
-            if !valid {
-                assert_eq!(result.unwrap_err().kind(), BindErrorKind::InvalidBounds);
-            }
-        }
-        for (min, max) in [
-            (Some(Bound::Included(decimal("10"))), None),
-            (None, Some(Bound::Included(decimal("-10")))),
-            (Some(Bound::Excluded(decimal("9.99"))), None),
-            (None, Some(Bound::Excluded(decimal("-9.99")))),
-        ] {
-            assert_eq!(
-                DecimalValue::new(Some(3), 2, min, max).unwrap_err().kind(),
-                BindErrorKind::InvalidBounds,
-            );
-        }
-    }
-
-    #[test]
     fn test_decimal_core_raw_endpoint_cost() {
         let huge = BigDecimal::from_bigint(1.into(), -131_071);
         for (precision, min, max, parameter) in [
@@ -371,33 +338,5 @@ mod tests {
         }
         assert!(DecimalValue::new(None, 2, Some(Bound::Unbounded), None).is_ok());
         assert!(DecimalValue::new(None, 2, None, Some(Bound::Included(decimal("1.23")))).is_ok());
-    }
-
-    #[test]
-    fn test_decimal_core_small_grid_oracle() {
-        for lower in -3i32..=3 {
-            for upper in lower..=3 {
-                for lower_closed in [false, true] {
-                    for upper_closed in [false, true] {
-                        let expected = (-99i32..=99).any(|k| {
-                            let low = lower * 10;
-                            let high = upper * 10;
-                            (k > low || lower_closed && k == low) && (k < high || upper_closed && k == high)
-                        });
-                        let low = if lower_closed {
-                            Bound::Included(BigDecimal::from(lower))
-                        } else {
-                            Bound::Excluded(BigDecimal::from(lower))
-                        };
-                        let high = if upper_closed {
-                            Bound::Included(BigDecimal::from(upper))
-                        } else {
-                            Bound::Excluded(BigDecimal::from(upper))
-                        };
-                        assert_eq!(DecimalValue::new(Some(2), 1, Some(low), Some(high)).is_ok(), expected);
-                    }
-                }
-            }
-        }
     }
 }

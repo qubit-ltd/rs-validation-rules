@@ -9,6 +9,23 @@
 /// Error returned when a direct dependency comparison cannot succeed.
 ///
 /// Neither variant includes the input or dependency text in its diagnostic.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::text::MatchesDependency;
+/// use qubit_validation_rules::text::MatchesDependencyError;
+/// use qubit_validator::BoundValidationContext;
+/// use qubit_validator::ValidationValue;
+/// use qubit_validator::Validator;
+///
+/// let values = [ValidationValue::Text("confirmation")];
+/// let context = BoundValidationContext::new(&values);
+/// assert_eq!(
+///     MatchesDependency.validate("different", &context),
+///     Err(MatchesDependencyError::Mismatch),
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
 pub enum MatchesDependencyError {

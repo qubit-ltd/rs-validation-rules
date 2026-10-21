@@ -6,7 +6,16 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
-/// Supported exact temporal resolutions.
+/// Supported exact temporal resolutions for time precision validation.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::time::TemporalResolution;
+///
+/// let resolution = TemporalResolution::Millisecond;
+/// assert_eq!(resolution, TemporalResolution::Millisecond);
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TemporalResolution {
     /// Whole seconds.

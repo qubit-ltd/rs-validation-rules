@@ -13,6 +13,16 @@ use super::comparison_limit_exceeded::ComparisonLimitExceeded;
 
 /// Finds the first duplicate according to [`PartialEq`] within a comparison
 /// budget.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::collection::UniqueItems;
+///
+/// let duplicate = UniqueItems::first_duplicate_with_limit(&[1, 2, 1], 3)
+///     .expect("the comparison budget is sufficient");
+/// assert_eq!(duplicate, Some((0, 2)));
+/// ```
 pub struct UniqueItems;
 
 impl UniqueItems {
@@ -21,6 +31,20 @@ impl UniqueItems {
     /// then earlier indices in ascending order. At most `max_comparisons`
     /// calls to [`PartialEq::eq`] are made. The worst-case work is O(n²),
     /// and neither the result nor the error formats or stores element values.
+    ///
+    /// # Type Parameters
+    /// - `T`: Item type whose equality implementation determines duplicates.
+    ///
+    /// # Parameters
+    /// - `values`: Borrowed sequence to inspect without cloning its items.
+    /// - `max_comparisons`: Maximum number of equality comparisons to perform.
+    ///
+    /// # Returns
+    /// Returns the first duplicate pair, or `None` if all items are distinct.
+    ///
+    /// # Errors
+    /// Returns [`ComparisonLimitExceeded`] when another comparison is needed
+    /// after the budget has been exhausted.
     pub fn first_duplicate_with_limit<T: PartialEq>(
         values: &[T],
         max_comparisons: usize,

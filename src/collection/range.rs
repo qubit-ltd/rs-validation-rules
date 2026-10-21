@@ -15,6 +15,10 @@ use qubit_validator::Validator;
 
 use super::range_error::RangeError;
 
+// Formats endpoint variants while keeping the endpoint values private.
+mod internal;
+use internal::RedactedBound;
+
 /// Checks endpoint bounds for partially ordered values.
 ///
 /// Unordered values such as `NaN` fail validation, including when both bounds
@@ -40,25 +44,12 @@ use super::range_error::RangeError;
 /// assert!(rule.validate(&1, &()).is_err());
 /// ```
 #[derive(Clone)]
+#[must_use]
 pub struct Range<T> {
     /// Lower endpoint, including whether equality is accepted.
     lower: Bound<T>,
     /// Upper endpoint, including whether equality is accepted.
     upper: Bound<T>,
-}
-
-/// Formats a bound without exposing its endpoint value.
-struct RedactedBound<'a, T>(&'a Bound<T>);
-
-impl<T> std::fmt::Debug for RedactedBound<'_, T> {
-    /// Writes the bound variant and a fixed redaction marker.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            Bound::Unbounded => formatter.write_str("Unbounded"),
-            Bound::Included(_) => formatter.write_str("Included(<redacted>)"),
-            Bound::Excluded(_) => formatter.write_str("Excluded(<redacted>)"),
-        }
-    }
 }
 
 impl<T> std::fmt::Debug for Range<T> {

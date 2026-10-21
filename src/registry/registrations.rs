@@ -22,6 +22,7 @@ use super::time;
 ///
 /// # Returns
 /// Registrations in the crate's stable built-in rule set.
+#[must_use]
 pub fn registrations() -> Vec<ValidatorRegistration> {
     #[allow(unused_mut)]
     let mut rules = vec![

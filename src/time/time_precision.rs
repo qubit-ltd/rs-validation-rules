@@ -16,7 +16,22 @@ use qubit_validator::Validator;
 use super::temporal_resolution::TemporalResolution;
 use super::time_precision_error::TimePrecisionError;
 
-/// Checks the nanosecond component without rounding or changing dates.
+/// Validates that a time value matches its declared temporal resolution.
+///
+/// Values are checked exactly: validation does not round or alter the input.
+///
+/// # Examples
+///
+/// ```
+/// use chrono::NaiveTime;
+/// use qubit_validation_rules::time::TemporalResolution;
+/// use qubit_validation_rules::time::TimePrecision;
+/// use qubit_validator::Validator;
+///
+/// let rule = TimePrecision::new(TemporalResolution::Millisecond);
+/// let time = NaiveTime::from_hms_nano_opt(12, 30, 0, 123_000_000).unwrap();
+/// assert!(rule.validate(&time, &()).is_ok());
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TimePrecision {
     resolution: TemporalResolution,

@@ -8,24 +8,8 @@
 
 use qubit_validator::Validator;
 
-/// Rejection reason for a non-blank text rule.
-///
-/// # Examples
-///
-/// ```
-/// use qubit_validation_rules::text::NonBlank;
-/// use qubit_validation_rules::text::NonBlankError;
-/// use qubit_validator::Validator;
-///
-/// assert_eq!(NonBlank.validate(" \t", &()), Err(NonBlankError::Blank));
-/// ```
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-#[must_use]
-pub enum NonBlankError {
-    /// The input contains only whitespace or is empty.
-    #[error("text is blank")]
-    Blank,
-}
+use super::non_blank_error::NonBlankError;
+
 /// Rejects empty text and text containing only Unicode whitespace.
 ///
 /// # Examples
