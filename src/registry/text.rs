@@ -183,6 +183,7 @@ fn prepare_matches_dependency(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn
         },
     ))
 }
+
 /// Binds a mainland China mobile-number structure rule.
 ///
 /// # Parameters
@@ -200,6 +201,7 @@ fn prepare_mobile(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedVal
         ViolationDraft::new(ViolationCode::new("text.mobile"))
     }))
 }
+
 /// Binds an absolute URI profile with no arguments.
 ///
 /// # Parameters
@@ -217,6 +219,7 @@ fn prepare_uri(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValida
         ViolationDraft::new(ViolationCode::new("text.uri"))
     }))
 }
+
 /// Binds a canonical UUID text profile with no arguments.
 ///
 /// # Parameters
@@ -234,95 +237,124 @@ fn prepare_uuid(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValid
         ViolationDraft::new(ViolationCode::new("text.uuid"))
     }))
 }
+
 /// Shared empty dependency list for standalone text rules.
 const EMPTY_DEPS: &[DependencySpec] = &[];
+
 /// Binding signature for the non-blank text rule.
 const TEXT_SIG_NON_BLANK: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_non_blank);
+
 /// Binding signature for the character-length rule.
 const TEXT_SIG_BOUNDS: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_char_length);
+
 /// Binding signature for the UTF-8 byte-length rule.
 const BYTE_SIG_BOUNDS: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_byte_length);
+
 /// Binding signature for the allowed-character rule.
 const ALLOWED_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_allowed_chars);
+
 /// Binding signature for the ASCII email rule.
 const EMAIL_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_email);
+
 /// Required text dependency read by the dependency comparison rule.
 const MATCHES_DEPENDENCY_DEPS: &[DependencySpec] = &[DependencySpec::new("expected", InputType::Text, false)];
+
 /// Binding signature for the dependency comparison rule.
 const MATCHES_DEPENDENCY_SIG: ValidatorSignature =
     ValidatorSignature::new(InputType::Text, MATCHES_DEPENDENCY_DEPS, prepare_matches_dependency);
+
 /// Binding signature for the mainland China mobile-number rule.
 const MOBILE_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_mobile);
+
 /// Binding signature for the absolute URI rule.
 const URI_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uri);
+
 /// Binding signature for the canonical UUID rule.
 const UUID_SIG: ValidatorSignature = ValidatorSignature::new(InputType::Text, EMPTY_DEPS, prepare_uuid);
+
 /// Registry descriptor for the non-blank text rule.
 pub(super) static DESC_NON_BLANK: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_NON_BLANK]);
+
 /// Registry descriptor for the Unicode scalar-value length rule.
 pub(super) static DESC_CHAR_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[TEXT_SIG_BOUNDS]);
+
 /// Registry descriptor for the UTF-8 byte-length rule.
 pub(super) static DESC_BYTE_LENGTH: ValidatorDescriptor = ValidatorDescriptor::new(&[BYTE_SIG_BOUNDS]);
+
 /// Registry descriptor for the allowed-character rule.
 pub(super) static DESC_ALLOWED: ValidatorDescriptor = ValidatorDescriptor::new(&[ALLOWED_SIG]);
+
 /// Registry descriptor for the ASCII email rule.
 pub(super) static DESC_EMAIL: ValidatorDescriptor = ValidatorDescriptor::new(&[EMAIL_SIG]);
+
 /// Registry descriptor for the dependency comparison rule.
 pub(super) static DESC_MATCHES_DEPENDENCY: ValidatorDescriptor = ValidatorDescriptor::new(&[MATCHES_DEPENDENCY_SIG]);
+
 /// Registry descriptor for the mobile-number structure rule.
 pub(super) static DESC_MOBILE: ValidatorDescriptor = ValidatorDescriptor::new(&[MOBILE_SIG]);
+
 /// Registry descriptor for the absolute URI rule.
 pub(super) static DESC_URI: ValidatorDescriptor = ValidatorDescriptor::new(&[URI_SIG]);
+
 /// Registry descriptor for the canonical UUID rule.
 pub(super) static DESC_UUID: ValidatorDescriptor = ValidatorDescriptor::new(&[UUID_SIG]);
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_NON_BLANK: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_NON_BLANK),
     &DESC_NON_BLANK,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_CHAR_LENGTH: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_CHAR_LENGTH),
     &DESC_CHAR_LENGTH,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_BYTE_LENGTH: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_BYTE_LENGTH),
     &DESC_BYTE_LENGTH,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_ALLOWED_CHARS: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_ALLOWED_CHARS),
     &DESC_ALLOWED,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_EMAIL: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_EMAIL_ASCII),
     &DESC_EMAIL,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_MATCHES_DEPENDENCY: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_MATCHES_DEPENDENCY),
     &DESC_MATCHES_DEPENDENCY,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_MOBILE: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_CHINA_MOBILE_STRUCTURE),
     &DESC_MOBILE,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_URI: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_URI),
     &DESC_URI,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );
+
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_UUID: ValidatorRegistration = ValidatorRegistration::new(
     ValidatorId::new(crate::ids::TEXT_UUID),

@@ -8,6 +8,9 @@
 
 //! Redacted formatting for [`super::super::Range`].
 
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Result;
 use std::ops::Bound;
 
 /// Formats a bound variant without exposing its endpoint value.
@@ -16,9 +19,9 @@ pub(in crate::collection::range) struct RedactedBound<'a, T>(
     pub(in crate::collection::range) &'a Bound<T>,
 );
 
-impl<T> std::fmt::Debug for RedactedBound<'_, T> {
+impl<T> Debug for RedactedBound<'_, T> {
     /// Writes the bound variant and a fixed redaction marker.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> Result {
         match self.0 {
             Bound::Unbounded => formatter.write_str("Unbounded"),
             Bound::Included(_) => formatter.write_str("Included(<redacted>)"),

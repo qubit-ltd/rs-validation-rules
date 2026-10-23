@@ -7,6 +7,7 @@
 // =============================================================================
 
 use std::cmp::Ordering;
+use std::fmt;
 use std::ops::Bound;
 
 use qubit_validator::BindError;
@@ -52,10 +53,10 @@ pub struct Range<T> {
     upper: Bound<T>,
 }
 
-impl<T> std::fmt::Debug for Range<T> {
+impl<T> fmt::Debug for Range<T> {
     /// Formats endpoint kinds without requiring endpoint values to implement
     /// `Debug`.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Range")
             .field("lower", &RedactedBound(&self.lower))

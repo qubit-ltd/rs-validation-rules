@@ -53,7 +53,7 @@ impl ChinaIdentity18Structure {
         let b = value.as_bytes();
         if b.len() != 18 {
             return Err(ChinaIdentityError::InvalidLength);
-        };
+        }
         for (i, digit) in b.iter().enumerate().take(17) {
             if !digit.is_ascii() {
                 return Err(ChinaIdentityError::NonAsciiBodyDigit { position: i as u8 });
