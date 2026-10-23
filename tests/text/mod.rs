@@ -6,4 +6,5 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+mod allowed_chars_tests;
 mod format_tests;

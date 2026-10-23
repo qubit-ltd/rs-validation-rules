@@ -81,7 +81,7 @@ fn test_decimal_core_small_grid_oracle() {
                     } else {
                         Bound::Excluded(BigDecimal::from(upper))
                     };
-                    assert_eq!(DecimalValue::new(Some(2), 1, Some(low), Some(high)).is_ok(), expected);
+                    assert_eq!(DecimalValue::new(Some(2), 1, Some(low), Some(high)).is_ok(), expected,);
                 }
             }
         }
