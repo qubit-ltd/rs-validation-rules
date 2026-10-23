@@ -77,11 +77,15 @@ impl Validator<str, ()> for CharLength {
     /// when a configured bound is violated.
     fn validate(&self, value: &str, _context: &()) -> Result<(), Self::Error> {
         let count = value.chars().count();
-        if below_min(count, self.min) {
-            return Err(TextLengthError::TooShort { min: self.min.unwrap() });
+        if let Some(min) = self.min
+            && below_min(count, Some(min))
+        {
+            return Err(TextLengthError::TooShort { min });
         }
-        if above_max(count, self.max) {
-            return Err(TextLengthError::TooLong { max: self.max.unwrap() });
+        if let Some(max) = self.max
+            && above_max(count, Some(max))
+        {
+            return Err(TextLengthError::TooLong { max });
         }
         Ok(())
     }

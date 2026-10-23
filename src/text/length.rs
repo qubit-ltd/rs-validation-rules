@@ -24,6 +24,8 @@ pub use text_length_error::TextLengthError;
 ///
 /// # Returns
 /// `true` when `min` exists and `count` is smaller.
+#[must_use]
+#[inline]
 pub(super) fn below_min(count: usize, min: Option<u32>) -> bool {
     min.is_some_and(|bound| count < bound as usize)
 }
@@ -36,6 +38,8 @@ pub(super) fn below_min(count: usize, min: Option<u32>) -> bool {
 ///
 /// # Returns
 /// `true` when `max` exists and `count` is larger.
+#[must_use]
+#[inline]
 pub(super) fn above_max(count: usize, max: Option<u32>) -> bool {
     max.is_some_and(|bound| count > bound as usize)
 }
