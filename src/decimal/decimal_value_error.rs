@@ -7,6 +7,21 @@
 // =============================================================================
 
 /// A failed decimal constraint, without the input or endpoint value.
+///
+/// # Examples
+///
+/// ```
+/// use std::str::FromStr;
+///
+/// use bigdecimal::BigDecimal;
+/// use qubit_validation_rules::decimal::DecimalValue;
+/// use qubit_validation_rules::decimal::DecimalValueError;
+/// use qubit_validator::Validator;
+///
+/// let validator = DecimalValue::new(Some(2), 0, None, None).expect("valid decimal rule");
+/// let value = BigDecimal::from_str("1.2").expect("decimal literal");
+/// assert_eq!(validator.validate(&value, &()), Err(DecimalValueError::Scale));
+/// ```
 #[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum DecimalValueError {

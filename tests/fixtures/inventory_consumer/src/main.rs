@@ -6,13 +6,14 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+use qubit_validation_rules as _;
 use qubit_validator::BoundValidationContext;
 use qubit_validator::InputType;
 use qubit_validator::ValidationOutcome;
 use qubit_validator::ValidationValue;
 use qubit_validator::ValidatorRegistry;
-use qubit_validation_rules as _;
 
+/// Exercises inventory registration and context-aware validation through the consumer API.
 fn main() {
     let registry = ValidatorRegistry::try_global().expect("inventory registry");
     assert!(registry.get("qubit.rules.text.email_ascii").is_some());

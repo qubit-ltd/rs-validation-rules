@@ -143,10 +143,23 @@ fn has_representable_value(
 
 /// Validates normalized decimal scale, total precision capacity, and exact
 /// bounds.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_validation_rules::decimal::DecimalValue;
+/// use qubit_validator::Validator;
+///
+/// let rule = DecimalValue::new(Some(3), 2, None, None).expect("valid rule");
+/// assert!(rule.validate(&"1.23".parse().expect("decimal"), &()).is_ok());
+/// ```
 #[derive(Clone)]
 pub struct DecimalValue {
+    /// Maximum total precision, or no cap when `None`.
     precision: Option<u16>,
+    /// Maximum normalized fractional scale and the accepted decimal grid.
     scale: u16,
+    /// Inclusive or exclusive bounds applied after precision and scale checks.
     range: Range<BigDecimal>,
 }
 

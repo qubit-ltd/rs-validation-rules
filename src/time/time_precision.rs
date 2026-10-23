@@ -63,6 +63,7 @@ impl TimePrecision {
 impl Validator<NaiveTime, ()> for TimePrecision {
     type Error = TimePrecisionError;
 
+    /// Validates the fractional-second precision of a time value.
     fn validate(&self, value: &NaiveTime, _: &()) -> Result<(), Self::Error> {
         self.check(value.nanosecond())
     }
@@ -71,6 +72,7 @@ impl Validator<NaiveTime, ()> for TimePrecision {
 impl Validator<NaiveDateTime, ()> for TimePrecision {
     type Error = TimePrecisionError;
 
+    /// Validates the fractional-second precision of a date-time value.
     fn validate(&self, value: &NaiveDateTime, _: &()) -> Result<(), Self::Error> {
         self.check(value.nanosecond())
     }
@@ -79,6 +81,7 @@ impl Validator<NaiveDateTime, ()> for TimePrecision {
 impl Validator<DateTime<Utc>, ()> for TimePrecision {
     type Error = TimePrecisionError;
 
+    /// Validates the fractional-second precision of a UTC date-time value.
     fn validate(&self, value: &DateTime<Utc>, _: &()) -> Result<(), Self::Error> {
         self.check(value.nanosecond())
     }

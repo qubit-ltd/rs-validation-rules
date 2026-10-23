@@ -24,13 +24,22 @@
 /// ```
 #[derive(Debug, Clone)]
 pub struct UniquePairs {
+    /// Number of items whose index pairs are being visited.
     len: usize,
+    /// First index in the next pair to emit.
     first: usize,
+    /// Second index in the next pair to emit.
     second: usize,
 }
 
 impl UniquePairs {
     /// Creates an iterator over the unique pairs in a sequence of `len` items.
+    ///
+    /// # Parameters
+    /// - `len`: Number of items whose index pairs should be visited.
+    ///
+    /// # Returns
+    /// An iterator that emits each index pair in duplicate-search order.
     #[must_use]
     #[inline]
     pub const fn new(len: usize) -> Self {
@@ -45,6 +54,7 @@ impl UniquePairs {
 impl Iterator for UniquePairs {
     type Item = (usize, usize);
 
+    /// Returns the next pair, or `None` after all pairs have been emitted.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.second >= self.len {

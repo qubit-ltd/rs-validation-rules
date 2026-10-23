@@ -34,10 +34,18 @@ use crate::time::TimePrecision;
 
 const EMPTY_DEPS: &[DependencySpec] = &[];
 
-/// Decodes the required resolution from the reader.
+/// Decodes the required temporal resolution from the shared argument reader.
 ///
-/// Returns a bind error for a missing or invalid precision. The binding flow
-/// reports duplicate and unknown parameters.
+/// # Parameters
+/// - `reader`: Reader containing the required `precision` parameter.
+///
+/// # Returns
+/// The precision mapped from `second`, `millisecond`, `microsecond`, or
+/// `nanosecond`.
+///
+/// # Errors
+/// Returns a bind error when `precision` is missing or has an unsupported
+/// value. The binding flow reports duplicate and unknown parameters.
 fn read_rule(reader: &mut ArgumentReader<'_>) -> Result<TimePrecision, BindError> {
     let resolution = match reader.required_str("precision")? {
         "second" => TemporalResolution::Second,
@@ -51,11 +59,17 @@ fn read_rule(reader: &mut ArgumentReader<'_>) -> Result<TimePrecision, BindError
     Ok(TimePrecision::new(resolution))
 }
 
-/// Prepares the UTC timestamp signature.
+/// Prepares the validator for UTC timestamps.
 ///
-/// Reads the required `precision` from `reader`. Returns a bind error for a
-/// missing or invalid precision; the binding flow checks duplicate and unknown
-/// parameters.
+/// # Parameters
+/// - `reader`: Shared reader containing the required `precision` parameter.
+///
+/// # Returns
+/// A prepared validator that checks UTC timestamps at the requested precision.
+///
+/// # Errors
+/// Returns a bind error when the precision is missing or unsupported. The
+/// binding flow reports duplicate and unknown parameters.
 fn prepare_utc(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     Ok(prepare_typed_validator::<DateTime<Utc>, _, _>(
         read_rule(reader)?,
@@ -63,11 +77,18 @@ fn prepare_utc(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValida
     ))
 }
 
-/// Prepares the date-time signature without a timezone.
+/// Prepares the validator for date-times without a timezone.
 ///
-/// Reads the required `precision` from `reader`. Returns a bind error for a
-/// missing or invalid precision; the binding flow checks duplicate and unknown
-/// parameters.
+/// # Parameters
+/// - `reader`: Shared reader containing the required `precision` parameter.
+///
+/// # Returns
+/// A prepared validator that checks naive date-times at the requested
+/// precision.
+///
+/// # Errors
+/// Returns a bind error when the precision is missing or unsupported. The
+/// binding flow reports duplicate and unknown parameters.
 fn prepare_date_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     Ok(prepare_typed_validator::<NaiveDateTime, _, _>(
         read_rule(reader)?,
@@ -75,11 +96,17 @@ fn prepare_date_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn Prepared
     ))
 }
 
-/// Prepares the time-of-day signature.
+/// Prepares the validator for times of day without a timezone.
 ///
-/// Reads the required `precision` from `reader`. Returns a bind error for a
-/// missing or invalid precision; the binding flow checks duplicate and unknown
-/// parameters.
+/// # Parameters
+/// - `reader`: Shared reader containing the required `precision` parameter.
+///
+/// # Returns
+/// A prepared validator that checks naive times at the requested precision.
+///
+/// # Errors
+/// Returns a bind error when the precision is missing or unsupported. The
+/// binding flow reports duplicate and unknown parameters.
 fn prepare_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
     Ok(prepare_typed_validator::<NaiveTime, _, _>(read_rule(reader)?, |_| {
         ViolationDraft::new(ViolationCode::new("time.precision"))
