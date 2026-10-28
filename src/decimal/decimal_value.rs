@@ -273,6 +273,32 @@ fn borrow_bound<T>(bound: &Bound<T>) -> Bound<&T> {
 impl Validator<BigDecimal, ()> for DecimalValue {
     type Error = DecimalValueError;
 
+    /// Validates a borrowed decimal against the configured scale, precision,
+    /// and range constraints, in that order. The unit context is unused.
+    ///
+    /// Representation-only trailing fractional zeros do not count toward the
+    /// normalized scale or precision, and zero has normalized scale and
+    /// precision requirements of zero. Values are checked exactly; this method
+    /// does not round them. The endpoint feasibility budget used by
+    /// [`DecimalValue::new`] does not limit runtime input values.
+    ///
+    /// # Parameters
+    ///
+    /// - `value`: Decimal value to validate.
+    /// - `context`: Unit context; unused by this validator.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when the value satisfies all configured constraints.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DecimalValueError::Scale`] when normalized scale exceeds the
+    /// configured scale, [`DecimalValueError::Precision`] when required
+    /// precision exceeds the configured precision, or
+    /// [`DecimalValueError::Range`] when the value is outside the configured
+    /// range. When multiple constraints fail, the first error in the order
+    /// above is returned.
     fn validate(&self, value: &BigDecimal, _: &()) -> Result<(), Self::Error> {
         let (coefficient, exponent) = value.as_bigint_and_scale();
         let decimal_digits = coefficient.to_str_radix(10);

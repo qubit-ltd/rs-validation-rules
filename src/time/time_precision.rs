@@ -34,17 +34,42 @@ use super::time_precision_error::TimePrecisionError;
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TimePrecision {
+    /// Resolution unit used to check whether the nanosecond component divides
+    /// evenly.
     resolution: TemporalResolution,
 }
 
 impl TimePrecision {
     /// Creates a rule for the declared resolution.
+    ///
+    /// # Parameters
+    ///
+    /// - `resolution`: Resolution unit used by subsequent validation.
+    ///
+    /// # Returns
+    ///
+    /// Returns a rule configured with the given resolution.
     #[must_use]
     pub const fn new(resolution: TemporalResolution) -> Self {
         Self { resolution }
     }
 
-    /// Checks that the nanosecond component divides evenly by the unit.
+    /// Checks whether the nanosecond component is divisible by the resolution
+    /// unit.
+    ///
+    /// # Parameters
+    ///
+    /// - `nanos`: Nanosecond component to check.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when `nanos` is divisible by the unit, or
+    /// [`TimePrecisionError::Precision`] otherwise.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TimePrecisionError::Precision`] when the component has finer
+    /// precision than the configured resolution.
     fn check(&self, nanos: u32) -> Result<(), TimePrecisionError> {
         let unit = match self.resolution {
             TemporalResolution::Second => 1_000_000_000,
@@ -63,7 +88,26 @@ impl TimePrecision {
 impl Validator<NaiveTime, ()> for TimePrecision {
     type Error = TimePrecisionError;
 
-    /// Validates the fractional-second precision of a time value.
+    /// Validates a time's fractional-second precision using its nanosecond
+    /// component.
+    ///
+    /// The unit context is unused. Validation succeeds when that component is
+    /// divisible by the configured resolution unit; the value is not rounded
+    /// or changed.
+    ///
+    /// # Parameters
+    ///
+    /// - `value`: Time value to validate.
+    /// - `context`: Unit context; unused by this validator.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when the time matches the configured resolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TimePrecisionError::Precision`] when the nanosecond component
+    /// is not divisible by the resolution unit.
     fn validate(&self, value: &NaiveTime, _: &()) -> Result<(), Self::Error> {
         self.check(value.nanosecond())
     }
@@ -72,7 +116,26 @@ impl Validator<NaiveTime, ()> for TimePrecision {
 impl Validator<NaiveDateTime, ()> for TimePrecision {
     type Error = TimePrecisionError;
 
-    /// Validates the fractional-second precision of a date-time value.
+    /// Validates a date-time's fractional-second precision using its nanosecond
+    /// component.
+    ///
+    /// The unit context is unused. Validation succeeds when that component is
+    /// divisible by the configured resolution unit; the value is not rounded
+    /// or changed.
+    ///
+    /// # Parameters
+    ///
+    /// - `value`: Date-time value to validate.
+    /// - `context`: Unit context; unused by this validator.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when the date-time matches the configured resolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TimePrecisionError::Precision`] when the nanosecond component
+    /// is not divisible by the resolution unit.
     fn validate(&self, value: &NaiveDateTime, _: &()) -> Result<(), Self::Error> {
         self.check(value.nanosecond())
     }
@@ -81,7 +144,26 @@ impl Validator<NaiveDateTime, ()> for TimePrecision {
 impl Validator<DateTime<Utc>, ()> for TimePrecision {
     type Error = TimePrecisionError;
 
-    /// Validates the fractional-second precision of a UTC date-time value.
+    /// Validates a UTC date-time's fractional-second precision using its
+    /// nanosecond component.
+    ///
+    /// The unit context is unused. Validation succeeds when that component is
+    /// divisible by the configured resolution unit; the value is not rounded
+    /// or changed.
+    ///
+    /// # Parameters
+    ///
+    /// - `value`: UTC date-time value to validate.
+    /// - `context`: Unit context; unused by this validator.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when the date-time matches the configured resolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TimePrecisionError::Precision`] when the nanosecond component
+    /// is not divisible by the resolution unit.
     fn validate(&self, value: &DateTime<Utc>, _: &()) -> Result<(), Self::Error> {
         self.check(value.nanosecond())
     }
