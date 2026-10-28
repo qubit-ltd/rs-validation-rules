@@ -209,6 +209,78 @@ does not need the `inventory` feature for that path.
   declarations, replace `format = email` with `format = email_ascii` and
   `TextFormat::Email` with `TextFormat::EmailAscii`.
 
+### Dynamic binding reference
+
+The table lists the built-in dynamic registrations returned by [`registrations()`](https://docs.rs/qubit-validation-rules/latest/qubit_validation_rules/fn.registrations.html). “Default” means no optional crate feature is needed; every rule takes no named dependency except `TEXT_MATCHES_DEPENDENCY`.
+
+| Rule ID | Feature | `InputType` | Named arguments | Named dependencies |
+| --- | --- | --- | --- | --- |
+| `TEXT_NON_BLANK`, `TEXT_EMAIL_ASCII`, `TEXT_CHINA_MOBILE_STRUCTURE`, `TEXT_URI`, `TEXT_UUID` | Default | `Text` | None | None |
+| `TEXT_CHAR_LENGTH`, `TEXT_BYTE_LENGTH` | Default | `Text` | `min`, `max`: optional `Unsigned` values converted to `u32`; at least one is required and `min <= max` | None |
+| `TEXT_ALLOWED_CHARS` | Default | `Text` | Required `set: String`; one of `unicode`, `printable_unicode`, `ascii`, `printable_ascii`, `code` | None |
+| `TEXT_MATCHES_DEPENDENCY` | Default | `Text` | None | Required text `expected`; positional dependency slot 0 is also supported |
+| `COLLECTION_ITEM_COUNT` | Default | Typed `usize` | `min`, `max`: optional `Unsigned` values converted to `usize`; at least one is required and `min <= max` | None |
+| `TEXT_REGEX` | `regex` | `Text` | Required `pattern: String`, at most 4,096 UTF-8 bytes | None |
+| `DECIMAL_VALUE` | `decimal` | Typed `BigDecimal` | Required `scale: Unsigned`; optional `precision: Unsigned`; both convert to `u16`. Optional `min`/`max: String` and `min_inclusive`/`max_inclusive: Bool`, each inclusivity defaulting to `true` | None |
+| `TIME_PRECISION` | `time` | Typed `DateTime<Utc>`, `NaiveDateTime`, or `NaiveTime` | Required `precision: String`: `second`, `millisecond`, `microsecond`, or `nanosecond` | None |
+
+`Range<T>` and `ChinaIdentity18Structure` are typed rules without dynamic registrations. `COLLECTION_UNIQUE` is an intrinsic `rs-model-metadata` sequence rule, not a registration from this crate. Decimal parameters that pass type and range checks can still fail construction: retain the decimal syntax, endpoint-cost, input privacy, and scale-grid limits described in [Decimal rules](#other-rule-profiles).
+
+### Run a bound rule and inspect its outcome
+
+The following examples are also executable doctests on [`registrations()`](https://docs.rs/qubit-validation-rules/latest/qubit_validation_rules/fn.registrations.html). The application can continue when it receives `Valid`; for `Invalid`, it can handle the structured violation code and parameters. Binding or execution errors are separate from a validation rejection.
+
+```rust
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::ValidationArgument;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::ValidatorRegistry;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let arguments = [NamedValidationArgument::new("set", ValidationArgument::String("code"))];
+    let rule = registry.bind(ids::TEXT_ALLOWED_CHARS, InputType::Text, &arguments)?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(rule.validate(ValidationValue::Text("job_1"), &context)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Text("job 1"), &context)? else {
+        panic!("space must be rejected by the code profile");
+    };
+    assert_eq!(violations[0].code().as_str(), "text.disallowed_characters");
+    Ok(())
+}
+```
+
+This example binds the `code` character profile: underscore passes, while a space produces `text.disallowed_characters`.
+
+```rust
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationDependency;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::ValidatorRegistry;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let rule = registry.bind(ids::TEXT_MATCHES_DEPENDENCY, InputType::Text, &[])?;
+    let dependencies = [NamedValidationDependency::new("expected", ValidationValue::Text("same"))];
+    assert_eq!(rule.validate_named(ValidationValue::Text("same"), &dependencies)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate_named(ValidationValue::Text("different"), &dependencies)? else {
+        panic!("different text must be rejected");
+    };
+    assert_eq!(violations[0].code().as_str(), "text.dependency_mismatch");
+    Ok(())
+}
+```
+
+Here, unequal text produces `text.dependency_mismatch`. Omitting `expected` is an execution error because a required dependency is missing; it does not mean the text differs.
+
 ### Model metadata execution boundary
 
 `qubit-model-metadata` binds the registered `ItemCount` rule to an outer
@@ -226,9 +298,12 @@ The model plan's `max_nodes` budget counts actual reads and rule invocations.
 rule call; element reads also cost nodes. The limits are checked before work,
 and exhaustion returns `TraversalLimit` with a partial report. Uniqueness can
 require O(n²) comparisons. These budgets belong to model execution, not direct
-typed-rule calls. Standard constraints inside selectors, Map key/value
-traversal, and unknown collection shapes remain unsupported. Consult the
-metadata [execution support matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md)
+typed-rule calls. Generated borrowed adapters also execute applicable selector
+rules for borrowed `Vec<T>` and array elements and for `HashMap<K, V>` /
+`BTreeMap<K, V>` keys and values. Selector rules cannot bind dependencies;
+unknown/custom containers, owned collection getters, implicit member unwrapping,
+and enum-payload selectors remain unsupported. Consult the metadata
+[execution support matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md)
 before building a plan.
 
 ## Errors and Diagnostics

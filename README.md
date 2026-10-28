@@ -96,13 +96,16 @@ at 2 MiB. Construction and binding report oversized patterns or programs as
 `ParameterOutOfRange(pattern)` and invalid syntax as `InvalidPattern`.
 Applications must bound matching input length at their input boundary.
 
-When `qubit-model-metadata` executes declarations, outer Map entry counts reuse
-`ItemCount` through a generated length adapter; outer sequence `unique_items`
-uses a generated element equality adapter rather than a generic registry rule.
-The model plan checks adapters and concrete types at build time. Its `max_nodes`
-budget covers reads and rule calls, while `max_comparisons` bounds sequence
-pair checks. Standard constraints inside selectors and Map key/value traversal
-remain unsupported by that backend. See the metadata [execution support
+When `qubit-model-metadata` executes declarations, generated borrowed adapters
+support applicable selectors over borrowed `Vec<T>` and array elements, and
+`HashMap<K, V>` / `BTreeMap<K, V>` keys and values. Outer Map entry counts reuse
+`ItemCount`; outer sequence `unique_items` uses an element equality adapter
+rather than a generic registry rule. Support depends on a matching adapter and
+input type. Selector rules cannot bind dependencies; owned collection getters,
+unknown container shapes, implicit member unwrapping, and enum-payload selectors
+are unsupported. The model plan checks capabilities at build time. Its
+`max_nodes` budget covers reads and rule calls, while `max_comparisons` bounds
+sequence pair checks. See the metadata [execution support
 matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md).
 
 ## Registration and Features

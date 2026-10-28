@@ -175,6 +175,78 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
 - 注册 ID `qubit.rules.text.email_ascii` 保持不变。模型声明要把 `format = email` 改为
   `format = email_ascii`，Rust 枚举用 `TextFormat::EmailAscii` 取代 `TextFormat::Email`。
 
+### 动态绑定速查
+
+下表列出 [`registrations()`](https://docs.rs/qubit-validation-rules/latest/qubit_validation_rules/fn.registrations.html) 返回的内置动态注册项。“默认”表示不需要开启可选 feature；除 `TEXT_MATCHES_DEPENDENCY` 外，这些规则均不声明命名依赖。
+
+| 规则 ID | Feature | `InputType` | 命名参数 | 命名依赖 |
+| --- | --- | --- | --- | --- |
+| `TEXT_NON_BLANK`、`TEXT_EMAIL_ASCII`、`TEXT_CHINA_MOBILE_STRUCTURE`、`TEXT_URI`、`TEXT_UUID` | 默认 | `Text` | 无 | 无 |
+| `TEXT_CHAR_LENGTH`、`TEXT_BYTE_LENGTH` | 默认 | `Text` | `min`、`max`：可选 `Unsigned`，转换为 `u32`；至少提供一个，且 `min <= max` | 无 |
+| `TEXT_ALLOWED_CHARS` | 默认 | `Text` | 必填 `set: String`，取值为 `unicode`、`printable_unicode`、`ascii`、`printable_ascii`、`code` 之一 | 无 |
+| `TEXT_MATCHES_DEPENDENCY` | 默认 | `Text` | 无 | 必需的文本依赖 `expected`；也支持位置依赖槽 0 |
+| `COLLECTION_ITEM_COUNT` | 默认 | 类型化 `usize` | `min`、`max`：可选 `Unsigned`，转换为 `usize`；至少提供一个，且 `min <= max` | 无 |
+| `TEXT_REGEX` | `regex` | `Text` | 必填 `pattern: String`，最多 4,096 个 UTF-8 字节 | 无 |
+| `DECIMAL_VALUE` | `decimal` | 类型化 `BigDecimal` | 必填 `scale: Unsigned`；可选 `precision: Unsigned`，均转为 `u16`。可选 `min`/`max: String` 与 `min_inclusive`/`max_inclusive: Bool`，包含性参数默认均为 `true` | 无 |
+| `TIME_PRECISION` | `time` | 类型化 `DateTime<Utc>`、`NaiveDateTime` 或 `NaiveTime` | 必填 `precision: String`：`second`、`millisecond`、`microsecond`、`nanosecond` 之一 | 无 |
+
+`Range<T>` 和 `ChinaIdentity18Structure` 是类型化规则，没有动态注册项。`COLLECTION_UNIQUE` 是 `rs-model-metadata` 的内建序列规则，不由本 crate 注册。Decimal 参数即使通过类型和取值范围检查，构造仍可能失败；语法、端点成本、输入隐私和刻度网格限制见[其他规则的校验范围](#其他规则的校验范围)。
+
+### 绑定规则并检查结果
+
+以下示例也作为 [`registrations()`](https://docs.rs/qubit-validation-rules/latest/qubit_validation_rules/fn.registrations.html) 的可运行 doctest。收到 `Valid` 后，应用可以继续处理；收到 `Invalid` 时，可以按结构化违规码和参数处理。绑定错误或执行错误都不同于规则拒绝输入。
+
+```rust
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::ValidationArgument;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::ValidatorRegistry;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let arguments = [NamedValidationArgument::new("set", ValidationArgument::String("code"))];
+    let rule = registry.bind(ids::TEXT_ALLOWED_CHARS, InputType::Text, &arguments)?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(rule.validate(ValidationValue::Text("job_1"), &context)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Text("job 1"), &context)? else {
+        panic!("space must be rejected by the code profile");
+    };
+    assert_eq!(violations[0].code().as_str(), "text.disallowed_characters");
+    Ok(())
+}
+```
+
+此例绑定 `code` 字符集：下划线通过，空格会产生 `text.disallowed_characters`。
+
+```rust
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationDependency;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::ValidatorRegistry;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let rule = registry.bind(ids::TEXT_MATCHES_DEPENDENCY, InputType::Text, &[])?;
+    let dependencies = [NamedValidationDependency::new("expected", ValidationValue::Text("same"))];
+    assert_eq!(rule.validate_named(ValidationValue::Text("same"), &dependencies)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate_named(ValidationValue::Text("different"), &dependencies)? else {
+        panic!("different text must be rejected");
+    };
+    assert_eq!(violations[0].code().as_str(), "text.dependency_mismatch");
+    Ok(())
+}
+```
+
+本例中，文本不相等会产生 `text.dependency_mismatch`。省略 `expected` 会因必需依赖缺失而成为执行错误，并不表示两段文本不相等。
+
 ### 模型元数据的执行边界
 
 `qubit-model-metadata` 通过生成的 `map_len` 适配器，把外层 `HashMap` 或 `BTreeMap`
@@ -187,8 +259,10 @@ Map 数量违规使用字段路径。
 模型执行的 `max_nodes` 预算统计实际读取和规则调用；模型级 `max_comparisons` 统计每次去重成对比较
 及 selector 元素规则调用，读取元素也消耗节点。每项工作开始前检查预算；超限返回
 `TraversalLimit` 和部分报告。去重最坏需要 O(n²) 次比较。这些预算属于模型执行，
-不作用于直接调用的类型化规则。该后端仍不支持 selector 内的标准约束、Map key/value 遍历
-及未知集合形状。构建计划前请查阅 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
+不作用于直接调用的类型化规则。生成的借用适配器也能对借用的 `Vec<T>` 和数组元素，
+以及 `HashMap<K, V>` / `BTreeMap<K, V>` 的 key、value 执行适用的 selector 规则。
+selector 规则不能绑定依赖；未知或自定义容器、owned 集合 getter、需要隐式解包的成员以及枚举
+payload selector 仍不支持。构建计划前请查阅 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
 
 ## 错误与诊断
 

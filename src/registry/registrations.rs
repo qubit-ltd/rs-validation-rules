@@ -22,6 +22,59 @@ use super::time;
 ///
 /// # Returns
 /// Registrations in the crate's stable built-in rule set.
+///
+/// # Examples
+/// Bind a rule with a named argument and inspect its structured rejection:
+///
+/// ```
+/// use qubit_validation_rules::ids;
+/// use qubit_validation_rules::registrations;
+/// use qubit_validator::BoundValidationContext;
+/// use qubit_validator::InputType;
+/// use qubit_validator::NamedValidationArgument;
+/// use qubit_validator::ValidationArgument;
+/// use qubit_validator::ValidationOutcome;
+/// use qubit_validator::ValidationValue;
+/// use qubit_validator::ValidatorRegistry;
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let registry = ValidatorRegistry::from_registrations(registrations())?;
+///     let arguments = [NamedValidationArgument::new("set", ValidationArgument::String("code"))];
+///     let rule = registry.bind(ids::TEXT_ALLOWED_CHARS, InputType::Text, &arguments)?;
+///     let context = BoundValidationContext::new(&[]);
+///     assert_eq!(rule.validate(ValidationValue::Text("job_1"), &context)?, ValidationOutcome::Valid);
+///     let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Text("job 1"), &context)? else {
+///         panic!("space must be rejected by the code profile");
+///     };
+///     assert_eq!(violations[0].code().as_str(), "text.disallowed_characters");
+///     Ok(())
+/// }
+/// ```
+///
+/// Bind a dependency-based rule and distinguish a mismatch from an execution
+/// error:
+///
+/// ```
+/// use qubit_validation_rules::ids;
+/// use qubit_validation_rules::registrations;
+/// use qubit_validator::InputType;
+/// use qubit_validator::NamedValidationDependency;
+/// use qubit_validator::ValidationOutcome;
+/// use qubit_validator::ValidationValue;
+/// use qubit_validator::ValidatorRegistry;
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let registry = ValidatorRegistry::from_registrations(registrations())?;
+///     let rule = registry.bind(ids::TEXT_MATCHES_DEPENDENCY, InputType::Text, &[])?;
+///     let dependencies = [NamedValidationDependency::new("expected", ValidationValue::Text("same"))];
+///     assert_eq!(rule.validate_named(ValidationValue::Text("same"), &dependencies)?, ValidationOutcome::Valid);
+///     let ValidationOutcome::Invalid(violations) = rule.validate_named(ValidationValue::Text("different"), &dependencies)? else {
+///         panic!("different text must be rejected");
+///     };
+///     assert_eq!(violations[0].code().as_str(), "text.dependency_mismatch");
+///     Ok(())
+/// }
+/// ```
 #[must_use]
 pub fn registrations() -> Vec<ValidatorRegistration> {
     #[allow(unused_mut)]

@@ -88,11 +88,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 构造和绑定返回 `ParameterOutOfRange(pattern)`；语法错误返回 `InvalidPattern`。
 应用仍需在输入入口限制待匹配文本的长度。
 
-`qubit-model-metadata` 执行声明时，外层 Map entry 数量通过生成的长度适配器复用
-`ItemCount`；外层 sequence `unique_items` 使用生成的元素相等性适配器，并非通用注册规则。
-模型计划在构建阶段检查适配器和具体类型。`max_nodes` 限制读取与规则调用，
-`max_comparisons` 限制序列元素成对比较。该后端仍不执行 selector 内的标准约束，
-也不遍历 Map key/value。准确范围见 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
+`qubit-model-metadata` 执行声明时，生成的借用适配器可对借用的 `Vec<T>` 和数组元素，
+以及 `HashMap<K, V>` / `BTreeMap<K, V>` 的 key、value 执行适用的 selector 规则。外层 Map
+entry 数量复用 `ItemCount`；外层 sequence `unique_items` 使用元素相等性适配器，并非通用注册规则。
+具体能力取决于适配器和输入类型是否匹配。selector 规则不能绑定依赖；owned 集合 getter、未知容器、
+需要隐式解包的成员及枚举 payload selector 均不支持。模型计划在构建阶段检查能力。`max_nodes`
+限制读取与规则调用，`max_comparisons` 限制序列成对比较。准确范围见 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
 
 ## 注册方式与功能开关
 
