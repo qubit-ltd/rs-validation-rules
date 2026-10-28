@@ -22,6 +22,27 @@ use qubit_validator::ValidatorRegistry;
 use regex::Regex;
 
 #[test]
+fn test_invalid_pattern_bodies_cannot_escape_full_string_wrapper() {
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    for pattern in [")a|b(?:", ")a|(?x)#"] {
+        assert!(Regex::new(pattern).is_err());
+        let error = RegexMatch::new(pattern).err().expect("invalid body must fail");
+        assert_eq!(error.kind(), BindErrorKind::InvalidPattern);
+        assert!(!format!("{error:?}").contains(pattern));
+
+        let arguments = [NamedValidationArgument::new(
+            "pattern",
+            ValidationArgument::String(pattern),
+        )];
+        let error = registry
+            .bind(ids::TEXT_REGEX, InputType::Text, &arguments)
+            .expect_err("invalid body must not bind");
+        assert_eq!(error.kind(), BindErrorKind::InvalidPattern);
+        assert!(!format!("{error:?}").contains(pattern));
+    }
+}
+
+#[test]
 fn test_extended_comment_pattern_preserves_full_string_matching() {
     let pattern = "(?x)abc # comment";
     assert!(Regex::new(pattern).is_ok(), "raw dependency pattern must be valid");
@@ -107,7 +128,6 @@ fn test_ordinary_patterns_and_invalid_bodies_keep_their_meaning() {
     )];
     let error = registry
         .bind(ids::TEXT_REGEX, InputType::Text, &arguments)
-        .err()
-        .expect("invalid pattern");
+        .expect_err("invalid pattern");
     assert!(!format!("{error:?}").contains(secret_pattern));
 }
