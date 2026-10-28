@@ -23,14 +23,13 @@ const MAX_COMPILED_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum lazy DFA transition cache size in bytes.
 const MAX_DFA_CACHE_BYTES: usize = 2 * 1024 * 1024;
 
-/// Compiles a full-string pattern under the supplied per-rule engine limits.
+/// Compiles a pattern under the supplied per-rule engine limits.
 ///
 /// Returns a parameter range error when the compiled program exceeds its
 /// limit, or an invalid-pattern error when the syntax is rejected. The error
 /// never retains the supplied pattern.
-fn compile_with_limits(pattern: &str, program_limit: usize, dfa_limit: usize) -> Result<Regex, BindError> {
-    let anchored = format!(r"\A(?:{pattern})\z");
-    RegexBuilder::new(&anchored)
+fn compile_pattern(pattern: &str, program_limit: usize, dfa_limit: usize) -> Result<Regex, BindError> {
+    RegexBuilder::new(pattern)
         .size_limit(program_limit)
         .dfa_size_limit(dfa_limit)
         .build()
@@ -40,6 +39,26 @@ fn compile_with_limits(pattern: &str, program_limit: usize, dfa_limit: usize) ->
             }
             _ => BindError::new(BindErrorKind::InvalidPattern),
         })
+}
+
+/// Compiles a full-string pattern under the supplied per-rule engine limits.
+///
+/// The input body is first compiled inside the existing full-string anchors.
+/// Only if that wrapper is invalid is the body compiled independently to
+/// distinguish a valid extended-mode trailing comment from invalid syntax.
+/// A valid body is then retried with a newline before the closing wrapper so
+/// the comment cannot consume the suffix. Every attempt uses the same compiled
+/// program and DFA cache limits; errors never retain the supplied pattern.
+fn compile_with_limits(pattern: &str, program_limit: usize, dfa_limit: usize) -> Result<Regex, BindError> {
+    let anchored = format!(r"\A(?:{pattern})\z");
+    match compile_pattern(&anchored, program_limit, dfa_limit) {
+        Err(error) if error.kind() == BindErrorKind::InvalidPattern => {
+            compile_pattern(pattern, program_limit, dfa_limit)?;
+            let comment_terminated = format!("\\A(?:{pattern}\n)\\z");
+            compile_pattern(&comment_terminated, program_limit, dfa_limit)
+        }
+        result => result,
+    }
 }
 
 /// Matches the entire input against a compiled regular expression.
