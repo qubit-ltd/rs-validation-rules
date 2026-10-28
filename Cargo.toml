@@ -10,6 +10,9 @@ homepage = "https://github.com/qubit-ltd/rs-validation-rules"
 documentation = "https://docs.rs/qubit-validation-rules"
 readme = "README.md"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 default = []
 inventory = ["qubit-validator/inventory"]
