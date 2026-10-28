@@ -87,3 +87,43 @@ fn test_decimal_core_small_grid_oracle() {
         }
     }
 }
+
+#[test]
+fn test_decimal_core_off_grid_signed_bounds_oracle() {
+    let endpoints = [
+        -1001, -991, -990, -989, -125, -124, -123, -121, -120, -119, -11, -10, -9, -1, 0, 1, 9, 10, 11, 119, 120, 121,
+        123, 124, 125, 989, 990, 991, 1001,
+    ];
+    let mut bounds = vec![None];
+    for cents in endpoints {
+        for included in [false, true] {
+            bounds.push(Some((cents, included)));
+        }
+    }
+    let to_bound = |endpoint: Option<(i32, bool)>| {
+        endpoint.map(|(cents, included)| {
+            let value = BigDecimal::new(cents.into(), 2);
+            if included {
+                Bound::Included(value)
+            } else {
+                Bound::Excluded(value)
+            }
+        })
+    };
+    for &lower in &bounds {
+        for &upper in &bounds {
+            if let (Some((low, _)), Some((high, _))) = (lower, upper)
+                && low > high
+            {
+                continue;
+            }
+            let expected = (-99..=99).any(|tenths| {
+                let cents = tenths * 10;
+                lower.is_none_or(|(low, included)| cents > low || included && cents == low)
+                    && upper.is_none_or(|(high, included)| cents < high || included && cents == high)
+            });
+            let result = DecimalValue::new(Some(2), 1, to_bound(lower), to_bound(upper));
+            assert_eq!(result.is_ok(), expected, "lower={lower:?}, upper={upper:?}");
+        }
+    }
+}
