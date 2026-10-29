@@ -136,16 +136,3 @@ pub(super) const REG_DECIMAL: ValidatorRegistration = ValidatorRegistration::new
 );
 #[cfg(feature = "inventory")]
 register_validator!(registration = REG_DECIMAL);
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_endpoint_literal_length() {
-        let at_limit = "9".repeat(131_072);
-        assert!(super::check_endpoint_literal_length(&at_limit, "min").is_ok());
-        let over_limit = format!("{}!", at_limit);
-        let error = super::check_endpoint_literal_length(&over_limit, "min").unwrap_err();
-        assert_eq!(error.kind(), qubit_validator::BindErrorKind::ParameterOutOfRange);
-        assert_eq!(error.parameter(), Some("min"));
-    }
-}

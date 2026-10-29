@@ -97,14 +97,26 @@ fn test_decimal_registry_endpoint_literal_length() {
     use qubit_validator::ValidatorRegistry;
 
     let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
-    let oversized = format!("{}!", "9".repeat(131_072));
+    let at_limit = "0".repeat(131_072);
+    let oversized = "0".repeat(131_073);
     for parameter in ["min", "max"] {
-        let args = [
+        let at_limit_args = [
+            NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
+            NamedValidationArgument::new(parameter, ValidationArgument::String(&at_limit)),
+        ];
+        assert!(
+            registry
+                .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &at_limit_args)
+                .is_ok(),
+            "{parameter} must accept a valid literal at the byte limit",
+        );
+
+        let oversized_args = [
             NamedValidationArgument::new("scale", ValidationArgument::Unsigned(0)),
             NamedValidationArgument::new(parameter, ValidationArgument::String(&oversized)),
         ];
         let error = registry
-            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &oversized_args)
             .unwrap_err();
         assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
         assert_eq!(error.parameter(), Some(parameter));
