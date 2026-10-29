@@ -21,3 +21,23 @@ fn test_printable_unicode_matches_the_general_category_allowlist() {
         assert!(rule.validate(value, &()).is_err(), "{value:?}");
     }
 }
+
+#[test]
+fn test_character_sets_enforce_each_declared_profile() {
+    let cases = [
+        (CharacterSet::Unicode, "é\n", true),
+        (CharacterSet::PrintableUnicode, "é", true),
+        (CharacterSet::PrintableUnicode, "\n", false),
+        (CharacterSet::Ascii, "abc\n", true),
+        (CharacterSet::Ascii, "é", false),
+        (CharacterSet::PrintableAscii, "abc", true),
+        (CharacterSet::PrintableAscii, "\n", false),
+        (CharacterSet::Code, "a9._-", true),
+        (CharacterSet::Code, "a b", false),
+    ];
+
+    for (set, value, expected_valid) in cases {
+        let result = AllowedChars::new(set).validate(value, &());
+        assert_eq!(result.is_ok(), expected_valid, "set {set:?}, value {value:?}");
+    }
+}

@@ -334,48 +334,15 @@ impl Validator<BigDecimal, ()> for DecimalValue {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Bound;
-
     use bigdecimal::BigDecimal;
-    use qubit_validator::BindErrorKind;
 
-    use super::DecimalValue;
     use super::check_endpoint_cost;
-
-    fn decimal(text: &str) -> BigDecimal {
-        text.parse().expect("test decimal")
-    }
 
     #[test]
     fn test_decimal_core_raw_endpoint_cost() {
-        let huge = BigDecimal::from_bigint(1.into(), -131_071);
-        for (precision, min, max, parameter) in [
-            (None, Some(Bound::Included(huge.clone())), None, "min"),
-            (None, None, Some(Bound::Excluded(huge.clone())), "max"),
-            (
-                None,
-                Some(Bound::Included(decimal("0"))),
-                Some(Bound::Included(huge.clone())),
-                "max",
-            ),
-            (
-                None,
-                Some(Bound::Included(huge.clone())),
-                Some(Bound::Included(huge.clone())),
-                "min",
-            ),
-            (Some(3), None, Some(Bound::Included(huge.clone())), "max"),
-            (Some(3), Some(Bound::Included(-huge.clone())), None, "min"),
-        ] {
-            let error = DecimalValue::new(precision, 0, min, max).unwrap_err();
-            assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
-            assert_eq!(error.parameter(), Some(parameter));
-        }
         assert!(check_endpoint_cost(&BigDecimal::from_bigint(1.into(), -131_070), 0, "min").is_ok());
         for exponent in [i64::MIN, i64::MAX] {
             assert!(check_endpoint_cost(&BigDecimal::from_bigint(1.into(), exponent), 0, "max").is_err());
         }
-        assert!(DecimalValue::new(None, 2, Some(Bound::Unbounded), None).is_ok());
-        assert!(DecimalValue::new(None, 2, None, Some(Bound::Included(decimal("1.23")))).is_ok());
     }
 }

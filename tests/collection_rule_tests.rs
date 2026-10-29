@@ -11,6 +11,8 @@ use std::ops::Bound;
 use std::rc::Rc;
 
 use qubit_validation_rules::collection::ComparisonLimitExceeded;
+use qubit_validation_rules::collection::ItemCount;
+use qubit_validation_rules::collection::ItemCountError;
 use qubit_validation_rules::collection::Range;
 use qubit_validation_rules::collection::RangeError;
 use qubit_validation_rules::collection::UniqueItems;
@@ -237,4 +239,31 @@ fn test_item_count_registry_rejects_bounds_above_usize_max() {
         assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
         assert_eq!(error.parameter(), Some(name));
     }
+}
+
+#[test]
+fn test_collection_rules_cover_bounds_and_unordered_values() {
+    let count = ItemCount::new(Some(2), Some(4)).expect("ordered bounds");
+    assert_eq!(count.validate(&3, &()), Ok(()));
+    assert_eq!(count.validate(&1, &()), Err(ItemCountError::TooSmall { min: 2 }));
+    assert_eq!(count.validate(&5, &()), Err(ItemCountError::TooLarge { max: 4 }));
+    assert_eq!(
+        ItemCount::new(Some(5), Some(4)).unwrap_err().kind(),
+        BindErrorKind::ParameterOutOfRange
+    );
+
+    let range = Range::new(Bound::Excluded(2), Bound::Included(5)).expect("valid range");
+    assert_eq!(range.validate(&3, &()), Ok(()));
+    assert_eq!(range.validate(&2, &()), Err(RangeError::OutOfRange));
+    assert_eq!(range.validate(&6, &()), Err(RangeError::OutOfRange));
+    assert_eq!(
+        Range::new(Bound::Included(5), Bound::Included(2)).unwrap_err().kind(),
+        BindErrorKind::InvalidBounds
+    );
+    assert_eq!(
+        Range::new(Bound::Excluded(3), Bound::Included(3)).unwrap_err().kind(),
+        BindErrorKind::InvalidBounds
+    );
+    let unordered = Range::new(Bound::Included(0.0_f64), Bound::Unbounded).expect("unbounded upper end");
+    assert_eq!(unordered.validate(&f64::NAN, &()), Err(RangeError::Unordered));
 }

@@ -21,6 +21,33 @@ use qubit_validator::Validator;
 use qubit_validator::ValidatorRegistry;
 use regex::Regex;
 
+#[cfg(feature = "regex")]
+fn create_test_registry() -> ValidatorRegistry {
+    ValidatorRegistry::from_registrations(registrations()).expect("standard registrations are valid")
+}
+
+#[cfg(feature = "regex")]
+fn violation_code(outcome: ValidationOutcome) -> String {
+    let ValidationOutcome::Invalid(violations) = outcome else {
+        panic!("expected an invalid outcome, got {outcome:?}");
+    };
+    violations[0].code().as_str().to_owned()
+}
+
+#[cfg(feature = "regex")]
+fn validate_text_rule(
+    registry: &ValidatorRegistry,
+    id: &str,
+    arguments: &[NamedValidationArgument<'_>],
+    value: &str,
+) -> ValidationOutcome {
+    registry
+        .bind(id, InputType::Text, arguments)
+        .expect("text rule should bind")
+        .validate(ValidationValue::Text(value), &BoundValidationContext::new(&[]))
+        .expect("text rule should execute")
+}
+
 #[test]
 fn test_invalid_pattern_bodies_cannot_escape_full_string_wrapper() {
     let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
@@ -130,4 +157,71 @@ fn test_ordinary_patterns_and_invalid_bodies_keep_their_meaning() {
         .bind(ids::TEXT_REGEX, InputType::Text, &arguments)
         .expect_err("invalid pattern");
     assert!(!format!("{error:?}").contains(secret_pattern));
+}
+
+#[cfg(feature = "regex")]
+#[test]
+fn test_regex_rule_compiles_and_matches_full_input() {
+    use qubit_validation_rules::regex_rule::RegexMatch;
+
+    let rule = RegexMatch::new(r"[a-z]+@[a-z]+\.com").expect("valid regex");
+    assert_eq!(rule.validate("user@example.com", &()), Ok(()));
+    assert_eq!(
+        rule.validate("prefix user@example.com", &()),
+        Err(TextRuleError::Pattern)
+    );
+    assert!(matches!(RegexMatch::new("["), Err(error) if error.kind() == BindErrorKind::InvalidPattern));
+
+    let registry = create_test_registry();
+    let arguments = [NamedValidationArgument::new(
+        "pattern",
+        ValidationArgument::String("[0-9]+"),
+    )];
+    assert_eq!(
+        validate_text_rule(&registry, "qubit.rules.text.regex", &arguments, "123"),
+        ValidationOutcome::Valid
+    );
+    assert_eq!(
+        violation_code(validate_text_rule(
+            &registry,
+            "qubit.rules.text.regex",
+            &arguments,
+            "12a"
+        )),
+        "text.pattern"
+    );
+}
+#[cfg(feature = "regex")]
+/// Typed and registered regex construction share the pattern byte limit.
+#[test]
+fn test_regex_rejects_pattern_above_limit() {
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::regex_rule::RegexMatch;
+
+    let allowed = "a".repeat(4_096);
+    assert!(
+        RegexMatch::new(&allowed).is_ok(),
+        "a simple pattern at the limit must compile"
+    );
+
+    let too_long = "a".repeat(4_097);
+    let error = match RegexMatch::new(&too_long) {
+        Ok(_) => panic!("typed constructor accepted an oversized pattern"),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("pattern"));
+
+    let registry = create_test_registry();
+    let args = [NamedValidationArgument::new(
+        "pattern",
+        ValidationArgument::String(&too_long),
+    )];
+    let error = match registry.bind(ids::TEXT_REGEX, InputType::Text, &args) {
+        Ok(_) => panic!("registry accepted an oversized pattern"),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("pattern"));
+    assert!(matches!(RegexMatch::new("["), Err(error) if error.kind() == BindErrorKind::InvalidPattern));
 }

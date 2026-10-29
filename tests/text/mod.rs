@@ -8,3 +8,6 @@
 
 mod allowed_chars_tests;
 mod format_tests;
+mod length_tests;
+mod matches_dependency_tests;
+mod non_blank_tests;
