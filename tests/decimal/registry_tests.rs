@@ -28,6 +28,51 @@ fn violation_code(outcome: qubit_validator::ValidationOutcome) -> String {
 
 #[cfg(feature = "decimal")]
 #[test]
+fn test_decimal_registry_endpoint_string_syntax() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::ids;
+    use qubit_validator::BindErrorKind;
+
+    let registry = create_test_registry();
+    let cases = [
+        ("0", true),
+        ("-0", true),
+        ("001.2300", true),
+        ("1.", true),
+        ("-1.20", true),
+        ("", false),
+        ("+1", false),
+        ("1e3", false),
+        (".5", false),
+        (" 1", false),
+        ("1 ", false),
+        ("1.2.3", false),
+        ("１２", false),
+    ];
+    for parameter in ["min", "max"] {
+        for (literal, expected_valid) in cases {
+            let arguments = [
+                NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+                NamedValidationArgument::new(parameter, ValidationArgument::String(literal)),
+            ];
+            let result = registry.bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &arguments);
+            if expected_valid {
+                assert!(result.is_ok(), "{parameter}: {literal:?} should bind");
+            } else {
+                let error = result.expect_err("invalid spelling must fail binding");
+                assert_eq!(
+                    error.kind(),
+                    BindErrorKind::ParameterOutOfRange,
+                    "{parameter}: {literal:?}"
+                );
+                assert_eq!(error.parameter(), Some(parameter));
+            }
+        }
+    }
+}
+
+#[cfg(feature = "decimal")]
+#[test]
 fn test_decimal_registry_endpoint_cost_and_grid() {
     use bigdecimal::BigDecimal;
     use qubit_validation_rules::ids;

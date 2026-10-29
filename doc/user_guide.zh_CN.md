@@ -205,10 +205,18 @@ punycode label 按普通 ASCII label 处理，不验证 IDNA 有效性。
 | `TEXT_MATCHES_DEPENDENCY` | 默认 | `Text` | 无 | 必需的文本依赖 `expected`；也支持位置依赖槽 0 |
 | `COLLECTION_ITEM_COUNT` | 默认 | 类型化 `usize` | `min`、`max`：可选 `Unsigned`，转换为 `usize`；至少提供一个，且 `min <= max` | 无 |
 | `TEXT_REGEX` | `regex` | `Text` | 必填 `pattern: String`，最多 4,096 个 UTF-8 字节 | 无 |
-| `DECIMAL_VALUE` | `decimal` | 类型化 `BigDecimal` | 必填 `scale: Unsigned`；可选 `precision: Unsigned`，均转为 `u16`。可选 `min`/`max: String` 与 `min_inclusive`/`max_inclusive: Bool`，包含性参数默认均为 `true` | 无 |
+| `DECIMAL_VALUE` | `decimal` | 类型化 `BigDecimal` | 必填 `scale: Unsigned`；可选 `precision: Unsigned`，均转为 `u16`。可选 `min`/`max: String`（[语法说明](#decimal-端点字符串语法)）与 `min_inclusive`/`max_inclusive: Bool`，包含性参数默认均为 `true` | 无 |
 | `TIME_PRECISION` | `time` | 类型化 `DateTime<Utc>`、`NaiveDateTime` 或 `NaiveTime` | 必填 `precision: String`：`second`、`millisecond`、`microsecond`、`nanosecond` 之一 | 无 |
 
 `Range<T>` 和 `ChinaIdentity18Structure` 是类型化规则，没有动态注册项。`COLLECTION_UNIQUE` 是 `rs-model-metadata` 的内建序列规则，不由本 crate 注册。Decimal 参数即使通过类型和取值范围检查，构造仍可能失败；语法、端点成本、输入隐私和刻度网格限制见[其他规则的校验范围](#其他规则的校验范围)。
+
+### Decimal 端点字符串语法
+
+动态 `min`、`max` 字符串必须完整匹配 ASCII 语法 `-?[0-9]+(\.[0-9]*)?`。负号可选，整数部分必填，小数部分允许为空。允许前导零和小数尾零，不自动去除空白；不接受正号、指数形式或省略整数部分。
+
+合法拼写包括 `0`、`-0`、`001.2300`、`1.` 和 `-1.20`。非法拼写包括空字符串、`+1`、`1e3`、`.5`、` 1`、`1 `、`1.2.3` 和 `１２`。
+
+合法拼写仍可能因 scale/precision、端点成本、顺序或刻度网格检查而绑定失败。每个动态端点在语法扫描和解析前还受 131,072 个 UTF-8 字节限制，该限制与端点成本上限不同。语法错误返回标注 `min` 或 `max` 的 `ParameterOutOfRange`，不保留字面量。这些字符串限制不作用于接收已解析 `BigDecimal` 的类型化 `DecimalValue::new`。
 
 ### 绑定规则并检查结果
 

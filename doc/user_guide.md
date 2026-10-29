@@ -245,10 +245,18 @@ The table lists the built-in dynamic registrations returned by [`registrations()
 | `TEXT_MATCHES_DEPENDENCY` | Default | `Text` | None | Required text `expected`; positional dependency slot 0 is also supported |
 | `COLLECTION_ITEM_COUNT` | Default | Typed `usize` | `min`, `max`: optional `Unsigned` values converted to `usize`; at least one is required and `min <= max` | None |
 | `TEXT_REGEX` | `regex` | `Text` | Required `pattern: String`, at most 4,096 UTF-8 bytes | None |
-| `DECIMAL_VALUE` | `decimal` | Typed `BigDecimal` | Required `scale: Unsigned`; optional `precision: Unsigned`; both convert to `u16`. Optional `min`/`max: String` and `min_inclusive`/`max_inclusive: Bool`, each inclusivity defaulting to `true` | None |
+| `DECIMAL_VALUE` | `decimal` | Typed `BigDecimal` | Required `scale: Unsigned`; optional `precision: Unsigned`; both convert to `u16`. Optional `min`/`max: String` ([syntax](#decimal-endpoint-string-syntax)) and `min_inclusive`/`max_inclusive: Bool`, each inclusivity defaulting to `true` | None |
 | `TIME_PRECISION` | `time` | Typed `DateTime<Utc>`, `NaiveDateTime`, or `NaiveTime` | Required `precision: String`: `second`, `millisecond`, `microsecond`, or `nanosecond` | None |
 
 `Range<T>` and `ChinaIdentity18Structure` are typed rules without dynamic registrations. `COLLECTION_UNIQUE` is an intrinsic `rs-model-metadata` sequence rule, not a registration from this crate. Decimal parameters that pass type and range checks can still fail construction: retain the decimal syntax, endpoint-cost, input privacy, and scale-grid limits described in [Decimal rules](#other-rule-profiles).
+
+### Decimal endpoint string syntax
+
+Dynamic `min` and `max` strings must match the complete ASCII grammar `-?[0-9]+(\.[0-9]*)?`. A leading minus sign is optional; the integer part is required and the fractional part may be empty. Leading zeros and trailing fractional zeros are accepted. The parser does not trim whitespace. A plus sign, exponent notation, or a missing integer part is rejected.
+
+Valid spellings include `0`, `-0`, `001.2300`, `1.`, and `-1.20`. Invalid spellings include an empty string, `+1`, `1e3`, `.5`, ` 1`, `1 `, `1.2.3`, and `１２`.
+
+A permitted spelling can still fail scale/precision, endpoint-cost, ordering, or scale-grid checks. Each dynamic endpoint is also limited to 131,072 UTF-8 bytes before syntax scanning and parsing; this differs from the endpoint-cost limit. Syntax failures return `ParameterOutOfRange` with parameter `min` or `max` without retaining the literal. These string restrictions do not apply to typed `DecimalValue::new`, which receives already parsed `BigDecimal` values.
 
 ### Run a bound rule and inspect its outcome
 
