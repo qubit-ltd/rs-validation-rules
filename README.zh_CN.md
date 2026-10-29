@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | --- | --- |
 | `text::CharLength` | 按 Unicode 标量值（`char`）计数，不按用户可见字符簇计数；`min`、`max` 至少提供一个。配置上下界使用 `u32`，实际计数保留为 `usize` 比较，不会窄化回绕。 |
 | `text::ByteLength` | 按 UTF-8 字节计数；同一段文本的结果可能与 `CharLength` 不同。`min`、`max` 至少提供一个。配置上下界使用 `u32`，实际计数保留为 `usize` 比较，不会窄化回绕。 |
-| `text::EmailAscii` | 检查 ASCII 邮箱轮廓和长度，不确认邮箱是否存在或能否收信。 |
+| `text::EmailAscii` | 检查受限 ASCII 邮箱格式：恰有一个 `@`，域名由点分隔的 label 组成；不确认邮箱是否存在或能否收信。详见[EmailAscii 校验范围](doc/user_guide.zh_CN.md#emailascii-校验范围)。 |
 | `text::AllowedChars` | 按所选字符策略校验。`PrintableUnicode` 允许 Unicode 字母、标记、数字、标点、符号和空格分隔符；拒绝控制、格式、私用区、未分配、行分隔符及段分隔符字符。 |
 | `text::Uri` | 检查 RFC 3986 绝对 URI 的通用语法，接受 `mailto:`、`urn:` 等 scheme；不确认 scheme 是否适合应用、主机是否存在或地址是否可达。 |
 | `collection::ItemCount` | 至少提供一个包含端点的数量边界，边界使用 `usize`；可接受的最大值随目标架构而变。 |

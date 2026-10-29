@@ -142,7 +142,7 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   用户感知的字素簇计数。
 - `AllowedChars` 支持 `Unicode`、`PrintableUnicode`、`Ascii`、`PrintableAscii` 和
   `Code`。`PrintableUnicode` 会拒绝控制字符和格式字符，包括零宽连字符。
-- `EmailAscii` 检查 ASCII 邮箱的格式轮廓和长度，不确认邮箱是否存在或能否收信。
+- `EmailAscii` 按下文所述的受限 ASCII 规则检查邮箱格式，不确认邮箱是否存在或能否收信。
 - `Uri` 检查 RFC 3986 绝对 URI 语法，也接受 `mailto:`、`urn:` 等非 Web scheme。
 - `ItemCount` 使用 `usize` 表示上下界；`Range<T>` 可为可部分排序的值配置包含、
   排除或无界端点；端点有序不代表离散类型的区间内一定有值。它的 `Debug` 输出
@@ -174,6 +174,22 @@ assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
   待匹配文本长度；应用应在输入入口设置长度上限。
 - 注册 ID `qubit.rules.text.email_ascii` 保持不变。模型声明要把 `format = email` 改为
   `format = email_ascii`，Rust 枚举用 `TextFormat::EmailAscii` 取代 `TextFormat::Email`。
+
+### EmailAscii 校验范围
+
+`EmailAscii` 只接受恰好一个 `@`、仅含 ASCII 字符且不含空白的输入；不会先去除空白或
+执行规范化。完整地址最多 254 字节；local 部分不能为空，且最多 64 字节。
+
+local 部分仅允许 ASCII 字母、数字及 ``!#$%&'*+-/=?^_`{|}~.``。点不能位于首尾，也不能
+连续出现。不接受带引号的 local（例如 `"a"`）或注释语法。
+
+domain 由点分隔的 label 组成。每个 label 长 1 至 63 字节，只含 ASCII 字母、数字或
+连字符；连字符不能位于首尾。空 label、末尾点、下划线、`[127.0.0.1]` 这类域名字面量及
+Unicode 域名原文都会被拒绝。单 label 域名有效，因此 `a@b` 会通过。符合语法的 ASCII
+punycode label 按普通 ASCII label 处理，不验证 IDNA 有效性。
+
+本规则不要求公共后缀或 DNS 可解析，不检查邮箱是否存在、能否收信或是否符合应用自己的
+域名策略。这是受限的应用格式，不代表完整实现所有 RFC 邮箱语法形式。
 
 ### 动态绑定速查
 
@@ -277,7 +293,9 @@ payload selector 仍不支持。构建计划前请查阅 metadata 的[执行矩�
 Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`decimal.range`、
 `time.precision`。Decimal 绑定要求 `scale`，可选 `precision`、规范十进制字符串 `min`/`max`
 及 `min_inclusive`/`max_inclusive`（默认均为 true）。Time 绑定要求
-`precision = second|millisecond|microsecond|nanosecond`。未知或越界参数会在绑定阶段失败。
+`precision = second|millisecond|microsecond|nanosecond`。发生 `time.precision` 违规时，报告
+包含 `precision` 参数，其静态 token 是配置值 `second`、`millisecond`、`microsecond` 或
+`nanosecond`。未知或越界参数会在绑定阶段失败。
 正则模式正文超长或编译程序超限时，类型化构造和注册表绑定均返回
 `BindErrorKind::ParameterOutOfRange`，参数名为 `pattern`；语法错误返回
 `BindErrorKind::InvalidPattern`。

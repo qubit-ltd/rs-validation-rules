@@ -12,6 +12,22 @@ use crate::text::text_rule_error::TextRuleError;
 
 /// Checks a bounded ASCII email address profile without network access.
 ///
+/// The value must contain exactly one `@`, contain only ASCII characters, and
+/// contain no whitespace; it is neither trimmed nor normalized. The complete
+/// address is limited to 254 bytes, and the non-empty local part is limited to
+/// 64 bytes. The local part accepts ASCII letters, digits, and
+/// ``!#$%&'*+-/=?^_`{|}~.``; dots cannot lead, trail, or repeat. Quoted local
+/// parts and comments are not supported.
+///
+/// The domain consists of dot-separated labels of 1 to 63 bytes, containing
+/// only ASCII letters, digits, and hyphens. A label cannot start or end with a
+/// hyphen. Empty labels, trailing dots, underscores, domain literals, and
+/// Unicode domain text are rejected. A single-label domain such as `a@b` is
+/// accepted. ASCII punycode labels are treated as ordinary ASCII labels; IDNA
+/// validity, public suffixes, DNS resolution, mailbox existence, delivery, and
+/// application-specific domain policy are not checked. This profile does not
+/// implement all RFC email syntax.
+///
 /// # Examples
 ///
 /// ```

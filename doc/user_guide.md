@@ -157,8 +157,8 @@ does not need the `inventory` feature for that path.
 - `AllowedChars` supports `Unicode`, `PrintableUnicode`, `Ascii`,
   `PrintableAscii`, and `Code`. `PrintableUnicode` rejects control and format
   characters, including zero-width joiners.
-- `EmailAscii` checks an ASCII email shape and length profile. It does not
-  confirm mailbox existence or delivery.
+- `EmailAscii` checks the bounded ASCII profile below. It does not confirm
+  mailbox existence or delivery.
 - `Uri` accepts absolute RFC 3986 URI syntax, including non-Web schemes such
   as `mailto:` and `urn:`.
 - `CharLength`, `ByteLength`, and `ItemCount` require at least one configured
@@ -208,6 +208,28 @@ does not need the `inventory` feature for that path.
 - The `qubit.rules.text.email_ascii` registration ID remains stable. In model
   declarations, replace `format = email` with `format = email_ascii` and
   `TextFormat::Email` with `TextFormat::EmailAscii`.
+
+### EmailAscii profile
+
+`EmailAscii` accepts exactly one `@`, ASCII characters only, and no whitespace.
+It does not trim or normalize the input. The complete address is at most 254
+bytes; the local part must be non-empty and at most 64 bytes.
+
+The local part contains only ASCII letters, digits, and
+``!#$%&'*+-/=?^_`{|}~.``. A dot cannot be first, last, or repeated. Quoted local
+parts (for example, `"a"`) and comment syntax are not accepted.
+
+The domain is a sequence of dot-separated labels. Each label is 1 to 63 bytes
+and contains only ASCII letters, digits, or hyphens; a hyphen cannot be first
+or last. Empty labels, a trailing dot, underscores, domain literals such as
+`[127.0.0.1]`, and Unicode domain text are rejected. A single-label domain is
+valid, so `a@b` is accepted. A syntactically permitted ASCII punycode label is
+treated like any other ASCII label; IDNA validity is not checked.
+
+This profile does not require a public suffix or DNS-resolvable domain and does
+not check mailbox existence, delivery capability, or application-specific
+domain policy. It is a bounded application profile, not a complete
+implementation of every RFC email syntax form.
 
 ### Dynamic binding reference
 
@@ -321,7 +343,9 @@ input value. Decimal and time rules report `decimal.scale`,
 Decimal binding requires `scale`, accepts optional `precision`, canonical string
 `min`/`max`, and optional `min_inclusive`/`max_inclusive` (both default true).
 Time binding requires `precision = second|millisecond|microsecond|nanosecond`.
-Unknown or out-of-range arguments fail at binding.
+A `time.precision` violation includes a `precision` parameter whose static
+token is the configured value (`second`, `millisecond`, `microsecond`, or
+`nanosecond`). Unknown or out-of-range arguments fail at binding.
 An oversized regex pattern or compiled program returns
 `BindErrorKind::ParameterOutOfRange` with parameter `pattern` during construction
 or binding. Invalid regex syntax returns `BindErrorKind::InvalidPattern`.

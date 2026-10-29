@@ -76,7 +76,7 @@ application must still decide which URI schemes and destinations it permits.
 | --- | --- |
 | `text::CharLength` | Number of Unicode scalar values (`char`), not grapheme clusters. At least one of `min` or `max` is required. Configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
 | `text::ByteLength` | Number of UTF-8 bytes, which can differ from `CharLength` for the same text. At least one of `min` or `max` is required. Configured bounds use `u32`, while the measured count remains `usize` and is compared without narrowing or wraparound. |
-| `text::EmailAscii` | An ASCII email shape and length profile; it does not establish mailbox existence or delivery. |
+| `text::EmailAscii` | A bounded ASCII email profile with one `@` and dot-separated domain labels; it does not establish mailbox existence or delivery. See the [EmailAscii profile](doc/user_guide.md#emailascii-profile). |
 | `text::AllowedChars` | Checks the selected character profile. `PrintableUnicode` allows Unicode letters, marks, numbers, punctuation, symbols, and space separators; it rejects control, format, private-use, unassigned, line-separator, and paragraph-separator characters. |
 | `text::Uri` | Generic RFC 3986 absolute URI syntax, including `mailto:` and `urn:`; it does not establish scheme suitability, host existence, or reachability. |
 | `collection::ItemCount` | At least one inclusive item-count bound expressed as `usize` is required; the largest accepted bound depends on the target architecture. |
