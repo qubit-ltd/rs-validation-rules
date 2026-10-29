@@ -6,7 +6,19 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
-/// Errors produced by text format and character rules.
+/// Errors produced by text format rules and the optional regex rule.
+///
+/// The `Blank`, `DisallowedCharacters`, and `DependencyMismatch` variants are
+/// retained for API compatibility. The corresponding built-in rules return
+/// dedicated error types instead:
+///
+/// | Rule | Error returned by the rule |
+/// | --- | --- |
+/// | [`crate::text::NonBlank`] | [`crate::text::NonBlankError::Blank`] |
+/// | [`crate::text::AllowedChars`] | [`crate::text::AllowedCharsError::Invalid`] |
+/// | [`crate::text::MatchesDependency`] | [`crate::text::MatchesDependencyError::MissingDependency`], [`crate::text::MatchesDependencyError::Mismatch`] |
+///
+/// Dependency comparison distinguishes a missing dependency from a mismatch.
 ///
 /// # Examples
 ///
@@ -20,10 +32,14 @@
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 #[must_use]
 pub enum TextRuleError {
-    /// Text is blank.
+    /// Compatibility variant for blank text. The built-in
+    /// [`crate::text::NonBlank`] rule returns [`crate::text::NonBlankError`]
+    /// instead.
     #[error("text is blank")]
     Blank,
-    /// Text contains a disallowed character.
+    /// Compatibility variant for disallowed characters. The built-in
+    /// [`crate::text::AllowedChars`] rule returns
+    /// [`crate::text::AllowedCharsError`] instead.
     #[error("text contains disallowed characters")]
     DisallowedCharacters,
     /// Text does not match a regular expression.
@@ -41,7 +57,9 @@ pub enum TextRuleError {
     /// Text does not meet the mainland China mobile number structure.
     #[error("text is not a valid mobile number")]
     Mobile,
-    /// Text differs from a required text dependency.
+    /// Compatibility variant for a dependency mismatch. The built-in
+    /// [`crate::text::MatchesDependency`] rule returns
+    /// [`crate::text::MatchesDependencyError`] instead.
     #[error("text does not match its required dependency")]
     DependencyMismatch,
 }
