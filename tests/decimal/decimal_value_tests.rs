@@ -9,6 +9,7 @@
 use std::ops::Bound;
 
 use bigdecimal::BigDecimal;
+use qubit_validation_rules::decimal::DecimalValue;
 use qubit_validation_rules::registrations;
 use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
@@ -410,4 +411,48 @@ fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
         .expect_err("an extreme selected upper endpoint exceeds the feasibility work limit");
     assert_eq!(upper_error.kind(), BindErrorKind::ParameterOutOfRange);
     assert_eq!(upper_error.parameter(), Some("max"));
+}
+
+#[test]
+fn test_decimal_small_grid_feasibility() {
+    let endpoints = [
+        -901, -900, -899, -101, -100, -99, -91, -90, -89, -1, 0, 1, 89, 90, 91, 99, 100, 101, 899, 900, 901,
+    ];
+    let mut bounds = vec![Bound::Unbounded];
+    for endpoint in endpoints {
+        bounds.push(Bound::Included(endpoint));
+        bounds.push(Bound::Excluded(endpoint));
+    }
+    let decimal_bound = |bound: &Bound<i32>| match bound {
+        Bound::Unbounded => Some(Bound::Unbounded),
+        Bound::Included(value) => Some(Bound::Included(BigDecimal::from_bigint((*value).into(), 2))),
+        Bound::Excluded(value) => Some(Bound::Excluded(BigDecimal::from_bigint((*value).into(), 2))),
+    };
+    for scale in [0_u16, 1] {
+        let factor = 100 / 10_i32.pow(u32::from(scale));
+        for lower in &bounds {
+            for upper in &bounds {
+                let expected = (-9..=9).any(|coefficient| {
+                    let value = coefficient * factor;
+                    let above = match lower {
+                        Bound::Unbounded => true,
+                        Bound::Included(min) => value >= *min,
+                        Bound::Excluded(min) => value > *min,
+                    };
+                    let below = match upper {
+                        Bound::Unbounded => true,
+                        Bound::Included(max) => value <= *max,
+                        Bound::Excluded(max) => value < *max,
+                    };
+                    above && below
+                });
+                let actual = DecimalValue::new(Some(1), scale, decimal_bound(lower), decimal_bound(upper));
+                assert_eq!(
+                    actual.is_ok(),
+                    expected,
+                    "scale={scale}, lower={lower:?}, upper={upper:?}, result={actual:?}",
+                );
+            }
+        }
+    }
 }
