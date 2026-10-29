@@ -57,11 +57,13 @@ impl Validator<str, ()> for EmailAscii {
     /// Returns [`TextRuleError::Email`] when syntax, character, or length
     /// constraints fail.
     fn validate(&self, value: &str, _: &()) -> Result<(), Self::Error> {
+        if value.len() > 254 {
+            return Err(TextRuleError::Email);
+        }
         let mut parts = value.split('@');
         let local = parts.next().ok_or(TextRuleError::Email)?;
         let domain = parts.next().ok_or(TextRuleError::Email)?;
         if parts.next().is_some()
-            || value.len() > 254
             || local.is_empty()
             || local.len() > 64
             || !value.is_ascii()

@@ -133,3 +133,16 @@ fn test_email_ascii_profile_boundaries() {
     assert!(EmailAscii.validate(&limit, &()).is_ok());
     assert!(EmailAscii.validate(&(limit + "b"), &()).is_err());
 }
+
+#[test]
+fn test_email_ascii_rejects_oversized_inputs() {
+    let long = "a".repeat(16_384);
+    for input in [long.clone(), format!("{long}@b"), format!("a@{long}")] {
+        assert_eq!(
+            EmailAscii.validate(&input, &()),
+            Err(TextRuleError::Email),
+            "oversized input of {} bytes must be rejected",
+            input.len(),
+        );
+    }
+}
