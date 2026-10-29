@@ -11,7 +11,6 @@ use qubit_validator::BindErrorKind;
 use qubit_validator::Validator;
 
 use super::TextLengthError;
-use super::above_max;
 use super::below_min;
 
 /// Bounds the number of Unicode scalar values in text, not grapheme clusters.
@@ -63,7 +62,7 @@ impl Validator<str, ()> for CharLength {
     /// Scalar-value count failure emitted when a bound is violated.
     type Error = TextLengthError;
 
-    /// Counts Unicode scalar values and checks the configured bounds.
+    /// Counts only the Unicode scalar-value prefix needed to check the bounds.
     ///
     /// # Parameters
     /// - `value`: Text whose scalar values are counted.
@@ -76,16 +75,24 @@ impl Validator<str, ()> for CharLength {
     /// Returns [`TextLengthError::TooShort`] or [`TextLengthError::TooLong`]
     /// when a configured bound is violated.
     fn validate(&self, value: &str, _context: &()) -> Result<(), Self::Error> {
-        let count = value.chars().count();
-        if let Some(min) = self.min
-            && below_min(count, Some(min))
-        {
-            return Err(TextLengthError::TooShort { min });
+        if let Some(max) = self.max {
+            let mut chars = value.chars();
+            let count = chars.by_ref().take(max as usize).count();
+            if let Some(min) = self.min
+                && below_min(count, Some(min))
+            {
+                return Err(TextLengthError::TooShort { min });
+            }
+            if chars.next().is_some() {
+                return Err(TextLengthError::TooLong { max });
+            }
+            return Ok(());
         }
-        if let Some(max) = self.max
-            && above_max(count, Some(max))
-        {
-            return Err(TextLengthError::TooLong { max });
+        if let Some(min) = self.min {
+            let count = value.chars().take(min as usize).count();
+            if below_min(count, Some(min)) {
+                return Err(TextLengthError::TooShort { min });
+            }
         }
         Ok(())
     }
