@@ -152,6 +152,163 @@ not included in dynamic registrations. Enable only the features the application
 uses. `rs-model-metadata` builds a local registry from `registrations()` and
 does not need the `inventory` feature for that path.
 
+### Decimal integration example
+
+A payment endpoint can accept decimal text from a caller, then enforce the
+application's precision before continuing. The typed rule reports a
+`DecimalValueError`; the registry form provides structured violation details
+that the application can return as a field error. Neither form rounds the
+amount. Registry endpoint strings follow the [decimal endpoint syntax](#decimal-endpoint-string-syntax),
+and configured bounds are subject to the [endpoint cost limits](#other-rule-profiles).
+
+Add these dependencies to the application's `Cargo.toml`:
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["decimal"] }
+qubit-validator = "0.1"
+bigdecimal = "0.4"
+```
+
+This complete program accepts `1.2300` at scale 2 because its trailing zero is
+representational, while rejecting `1.234`. A valid outcome is the signal to
+continue processing; on rejection, the application should report a precision
+problem to the caller rather than silently changing the amount.
+
+```rust
+use bigdecimal::BigDecimal;
+use qubit_validation_rules::decimal::DecimalValue;
+use qubit_validation_rules::decimal::DecimalValueError;
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::ValidationArgument;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
+use qubit_validator::ValidatorRegistry;
+use qubit_validator::ViolationParam;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let amount: BigDecimal = "1.2300".parse()?;
+    let too_precise: BigDecimal = "1.234".parse()?;
+    let typed = DecimalValue::new(Some(3), 2, None, None)?;
+    typed.validate(&amount, &())?;
+    assert_eq!(typed.validate(&too_precise, &()), Err(DecimalValueError::Scale));
+
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let args = [
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(3)),
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+    ];
+    let rule = registry.bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(rule.validate(ValidationValue::Typed(&amount), &context)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Typed(&too_precise), &context)? else {
+        panic!("fractional precision must be rejected");
+    };
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].code().as_str(), "decimal.scale");
+    assert_eq!(violations[0].params().get("scale"), Some(&ViolationParam::Unsigned(2)));
+    Ok(())
+}
+```
+
+### Time precision integration example
+
+For a booking time that must align to milliseconds, `TimePrecision` checks the
+value without changing it. After a precision error, the application decides
+whether to return the input for correction or explicitly convert it under its
+own policy; this rule does not round automatically.
+
+Add these dependencies to `Cargo.toml`:
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["time"] }
+qubit-validator = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+```
+
+The following complete program accepts a millisecond-aligned time and rejects
+one with an additional nanosecond. `Valid` permits the booking workflow to
+continue; on rejection, the application chooses how to ask the caller to
+correct or explicitly convert the value.
+
+```rust
+use chrono::NaiveTime;
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validation_rules::time::TemporalResolution;
+use qubit_validation_rules::time::TimePrecision;
+use qubit_validation_rules::time::TimePrecisionError;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::ValidationArgument;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
+use qubit_validator::ValidatorRegistry;
+use qubit_validator::ViolationParam;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let accepted = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_000_000).unwrap();
+    let rejected = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_000_001).unwrap();
+    let typed = TimePrecision::new(TemporalResolution::Millisecond);
+    typed.validate(&accepted, &())?;
+    assert_eq!(typed.validate(&rejected, &()), Err(TimePrecisionError::Precision));
+
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let args = [NamedValidationArgument::new("precision", ValidationArgument::String("millisecond"))];
+    let rule = registry.bind(ids::TIME_PRECISION, InputType::of::<NaiveTime>(), &args)?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(rule.validate(ValidationValue::Typed(&accepted), &context)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Typed(&rejected), &context)? else {
+        panic!("sub-millisecond precision must be rejected");
+    };
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].code().as_str(), "time.precision");
+    assert_eq!(violations[0].params().get("precision"), Some(&ViolationParam::Token("millisecond")));
+    Ok(())
+}
+```
+
+### Identity facts integration example
+
+An application may need facts encoded in an 18-character mainland China
+identity number, such as its birth date. A successful parse exposes those
+encoded facts only; the application remains responsible for identity checks
+and comparing the date with its business rules. A structural pass does not
+establish that the number was issued, that its region code is assigned, or that
+it belongs to the current holder. Inputs shorter or longer than 18 characters
+fail immediately with a structure error.
+
+Add this dependency to `Cargo.toml`:
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["china-identity"] }
+```
+
+This complete program reads the encoded birth date and demonstrates the
+short-input error. The application can use the parsed date in its next business
+step, but must perform any identity verification separately.
+
+```rust
+use qubit_validation_rules::identity::ChinaIdentity18Structure;
+use qubit_validation_rules::identity::ChinaIdentityError;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let facts = ChinaIdentity18Structure::parse("11010519491231002X")?;
+    assert_eq!(facts.birth_date().to_string(), "1949-12-31");
+    assert_eq!(ChinaIdentity18Structure::parse("short"), Err(ChinaIdentityError::InvalidLength));
+    Ok(())
+}
+```
+
 ### Other rule profiles
 
 - `CharLength` counts Unicode scalar values, while `ByteLength` counts UTF-8

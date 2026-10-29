@@ -146,6 +146,9 @@ the format `email_ascii` and use `TextFormat::EmailAscii`.
 
 - [User guide](doc/user_guide.md) for typed rules, registry bindings, errors,
   and feature choices.
+- [Decimal integration example](doc/user_guide.md#decimal-integration-example)
+- [Time precision integration example](doc/user_guide.md#time-precision-integration-example)
+- [Identity facts integration example](doc/user_guide.md#identity-facts-integration-example)
 - Generate the API documentation locally with `cargo doc --all-features --no-deps --open`.
 - [中文文档](README.zh_CN.md)
 

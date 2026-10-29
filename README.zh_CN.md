@@ -127,6 +127,9 @@ entry 数量复用 `ItemCount`；外层 sequence `unique_items` 使用元素相�
 
 - [用户手册](doc/user_guide.zh_CN.md)：了解类型化规则、注册表绑定、错误处理和
   feature 选择。
+- [Decimal 接入示例](doc/user_guide.zh_CN.md#decimal-接入示例)
+- [时间精度接入示例](doc/user_guide.zh_CN.md#时间精度接入示例)
+- [身份证事实接入示例](doc/user_guide.zh_CN.md#身份证事实接入示例)
 - 运行 `cargo doc --all-features --no-deps --open`，在本地生成并打开 API 文档。
 - [English documentation](README.md)
 

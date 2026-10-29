@@ -138,6 +138,153 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 应用只需开启实际使用的 feature。`rs-model-metadata` 使用
 `registrations()` 建立局部注册表，该路径不需要启用 `inventory`。
 
+### Decimal 接入示例
+
+支付接口收到金额后，通常要先确认它符合业务规定的小数精度，再进入后续处理。
+类型化调用会返回 `DecimalValueError`；注册表调用则会给出结构化违规信息，方便应用
+映射成金额字段错误。两种方式都不会替应用舍入金额。动态注册的边界字符串必须符合
+[Decimal 端点语法](#decimal-端点字符串语法)，而边界构造还受[端点成本限制](#其他规则的校验范围)约束。
+
+在应用的 `Cargo.toml` 中添加依赖：
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["decimal"] }
+qubit-validator = "0.1"
+bigdecimal = "0.4"
+```
+
+下面的完整程序接受 `1.2300`：末尾的零只影响表示形式，不改变数值；`1.234` 则超过
+两位小数。校验通过后，应用可以继续处理金额；校验失败时应把精度问题反馈给调用方，
+不要悄悄改写金额。
+
+```rust
+use bigdecimal::BigDecimal;
+use qubit_validation_rules::decimal::DecimalValue;
+use qubit_validation_rules::decimal::DecimalValueError;
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::ValidationArgument;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
+use qubit_validator::ValidatorRegistry;
+use qubit_validator::ViolationParam;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let amount: BigDecimal = "1.2300".parse()?;
+    let too_precise: BigDecimal = "1.234".parse()?;
+    let typed = DecimalValue::new(Some(3), 2, None, None)?;
+    typed.validate(&amount, &())?;
+    assert_eq!(typed.validate(&too_precise, &()), Err(DecimalValueError::Scale));
+
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let args = [
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(3)),
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+    ];
+    let rule = registry.bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(rule.validate(ValidationValue::Typed(&amount), &context)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Typed(&too_precise), &context)? else {
+        panic!("fractional precision must be rejected");
+    };
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].code().as_str(), "decimal.scale");
+    assert_eq!(violations[0].params().get("scale"), Some(&ViolationParam::Unsigned(2)));
+    Ok(())
+}
+```
+
+### 时间精度接入示例
+
+例如，预约时间必须精确到毫秒。`TimePrecision` 只检查输入是否符合粒度，不会替应用
+修改时间。若精度不符，应用可以退回输入让调用方修正，也可以按明确的业务策略转换后
+再提交；不要把校验描述成自动舍入。
+
+在 `Cargo.toml` 中加入：
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["time"] }
+qubit-validator = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+```
+
+完整示例中，毫秒对齐的时刻通过校验，多出 1 纳秒的时刻被拒绝。`Valid` 表示可以
+继续预约流程；遇到违规后，由应用决定是让调用方修正，还是依照业务规则显式转换。
+
+```rust
+use chrono::NaiveTime;
+use qubit_validation_rules::ids;
+use qubit_validation_rules::registrations;
+use qubit_validation_rules::time::TemporalResolution;
+use qubit_validation_rules::time::TimePrecision;
+use qubit_validation_rules::time::TimePrecisionError;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::NamedValidationArgument;
+use qubit_validator::ValidationArgument;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::Validator;
+use qubit_validator::ValidatorRegistry;
+use qubit_validator::ViolationParam;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let accepted = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_000_000).unwrap();
+    let rejected = NaiveTime::from_hms_nano_opt(12, 0, 0, 123_000_001).unwrap();
+    let typed = TimePrecision::new(TemporalResolution::Millisecond);
+    typed.validate(&accepted, &())?;
+    assert_eq!(typed.validate(&rejected, &()), Err(TimePrecisionError::Precision));
+
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let args = [NamedValidationArgument::new("precision", ValidationArgument::String("millisecond"))];
+    let rule = registry.bind(ids::TIME_PRECISION, InputType::of::<NaiveTime>(), &args)?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(rule.validate(ValidationValue::Typed(&accepted), &context)?, ValidationOutcome::Valid);
+    let ValidationOutcome::Invalid(violations) = rule.validate(ValidationValue::Typed(&rejected), &context)? else {
+        panic!("sub-millisecond precision must be rejected");
+    };
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].code().as_str(), "time.precision");
+    assert_eq!(violations[0].params().get("precision"), Some(&ViolationParam::Token("millisecond")));
+    Ok(())
+}
+```
+
+### 身份证事实接入示例
+
+应用可能需要读取 18 位身份证号码中编码的出生日期等事实。解析成功只能说明这些
+编码事实符合结构规则；后续身份核验，以及出生日期与业务日期的比较，都由应用负责。
+结构校验通过不代表号码确由主管机构签发、地区码已实际分配或号码属于当前持有人。
+长度不足或超出 18 位时，会立即返回结构错误。
+
+在 `Cargo.toml` 添加依赖：
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["china-identity"] }
+```
+
+下面的完整程序读取出生日期，并展示短输入的错误。应用可以在后续业务步骤使用解析
+结果，但仍需自行完成身份核验。
+
+```rust
+use qubit_validation_rules::identity::ChinaIdentity18Structure;
+use qubit_validation_rules::identity::ChinaIdentityError;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let facts = ChinaIdentity18Structure::parse("11010519491231002X")?;
+    assert_eq!(facts.birth_date().to_string(), "1949-12-31");
+    assert_eq!(ChinaIdentity18Structure::parse("short"), Err(ChinaIdentityError::InvalidLength));
+    Ok(())
+}
+```
+
 ### 其他规则的校验范围
 
 - `CharLength` 按 Unicode 标量值计数；`ByteLength` 按 UTF-8 字节计数。两者都不按
