@@ -150,3 +150,37 @@ fn test_registered_char_length_preserves_bound_violation_parameters() {
     assert_registered_length_violation(&registry, 2, "min", "a", "text.too_short");
     assert_registered_length_violation(&registry, 2, "max", "abc", "text.too_long");
 }
+
+#[test]
+fn test_registered_byte_length_preserves_bound_parameters() {
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    for (parameter, bound, code) in [
+        ("min", 3_u128, "text.too_few_bytes"),
+        ("max", 1_u128, "text.too_many_bytes"),
+    ] {
+        let args = [NamedValidationArgument::new(
+            parameter,
+            ValidationArgument::Unsigned(bound),
+        )];
+        let rule = registry
+            .bind(qubit_validation_rules::ids::TEXT_BYTE_LENGTH, InputType::Text, &args)
+            .unwrap();
+        let outcome = rule
+            .validate(ValidationValue::Text("é"), &BoundValidationContext::new(&[]))
+            .unwrap();
+        let ValidationOutcome::Invalid(violations) = outcome else {
+            panic!("two UTF-8 bytes must violate this bound");
+        };
+        assert_eq!(violations.len(), 1);
+        assert_eq!(
+            violations[0].rule_id().as_str(),
+            qubit_validation_rules::ids::TEXT_BYTE_LENGTH
+        );
+        assert_eq!(violations[0].code().as_str(), code);
+        assert_eq!(violations[0].params().len(), 1);
+        assert_eq!(
+            violations[0].params().get("bound"),
+            Some(&ViolationParam::Unsigned(bound))
+        );
+    }
+}

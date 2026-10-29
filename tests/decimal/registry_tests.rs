@@ -239,3 +239,90 @@ fn test_registered_decimal_optional_min_bound_uses_string_literal() {
         ValidationOutcome::Valid
     );
 }
+
+#[cfg(feature = "decimal")]
+#[test]
+fn test_registered_decimal_preserves_violation_parameters() {
+    use bigdecimal::BigDecimal;
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::registrations;
+    use qubit_validator::BoundValidationContext;
+    use qubit_validator::InputType;
+    use qubit_validator::NamedValidationArgument;
+    use qubit_validator::ValidationArgument;
+    use qubit_validator::ValidationOutcome;
+    use qubit_validator::ValidationValue;
+    use qubit_validator::ValidatorRegistry;
+    use qubit_validator::ViolationParam;
+
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    let context = BoundValidationContext::new(&[]);
+    let scalar_args = [
+        NamedValidationArgument::new("precision", ValidationArgument::Unsigned(3)),
+        NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
+    ];
+    let scalar_rule = registry
+        .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &scalar_args)
+        .unwrap();
+    for (input, code, name, expected) in [
+        ("1.234", "decimal.scale", "scale", 2_u128),
+        ("12", "decimal.precision", "precision", 3_u128),
+    ] {
+        let value: BigDecimal = input.parse().unwrap();
+        let outcome = scalar_rule.validate(ValidationValue::Typed(&value), &context).unwrap();
+        let ValidationOutcome::Invalid(violations) = outcome else {
+            panic!("expected a scalar violation");
+        };
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule_id().as_str(), ids::DECIMAL_VALUE);
+        assert_eq!(violations[0].code().as_str(), code);
+        assert_eq!(violations[0].params().len(), 1);
+        assert_eq!(
+            violations[0].params().get(name),
+            Some(&ViolationParam::Unsigned(expected))
+        );
+    }
+
+    for inclusivity in [
+        None,
+        Some((true, true)),
+        Some((true, false)),
+        Some((false, true)),
+        Some((false, false)),
+    ] {
+        let mut args = scalar_args.to_vec();
+        args.extend([
+            NamedValidationArgument::new("min", ValidationArgument::String("1")),
+            NamedValidationArgument::new("max", ValidationArgument::String("2")),
+        ]);
+        if let Some((min, max)) = inclusivity {
+            args.extend([
+                NamedValidationArgument::new("min_inclusive", ValidationArgument::Bool(min)),
+                NamedValidationArgument::new("max_inclusive", ValidationArgument::Bool(max)),
+            ]);
+        }
+        let rule = registry
+            .bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args)
+            .unwrap();
+        let (min, max) = inclusivity.unwrap_or((true, true));
+        for input in ["0.99", "2.01"] {
+            let value: BigDecimal = input.parse().unwrap();
+            let outcome = rule.validate(ValidationValue::Typed(&value), &context).unwrap();
+            let ValidationOutcome::Invalid(violations) = outcome else {
+                panic!("expected a range violation");
+            };
+            assert_eq!(violations.len(), 1);
+            assert_eq!(violations[0].rule_id().as_str(), ids::DECIMAL_VALUE);
+            assert_eq!(violations[0].code().as_str(), "decimal.range");
+            assert_eq!(violations[0].params().len(), 2);
+            assert_eq!(
+                violations[0].params().get("min_inclusive"),
+                Some(&ViolationParam::Bool(min))
+            );
+            assert_eq!(
+                violations[0].params().get("max_inclusive"),
+                Some(&ViolationParam::Bool(max))
+            );
+        }
+    }
+}
