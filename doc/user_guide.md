@@ -109,18 +109,20 @@ use qubit_validator::ValidationArgument;
 use qubit_validator::ValidationValue;
 use qubit_validator::ValidatorRegistry;
 
-let registry = ValidatorRegistry::from_registrations(registrations())?;
-let arguments = [NamedValidationArgument::new(
-    "min",
-    ValidationArgument::Unsigned(2),
-)];
-let rule = registry.bind(ids::TEXT_CHAR_LENGTH, InputType::Text, &arguments)?;
-let outcome = rule.validate(
-    ValidationValue::Text("éa"),
-    &BoundValidationContext::new(&[]),
-)?;
-assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
-# Ok::<(), Box<dyn std::error::Error>>(())
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::from_registrations(registrations())?;
+    let arguments = [NamedValidationArgument::new(
+        "min",
+        ValidationArgument::Unsigned(2),
+    )];
+    let rule = registry.bind(ids::TEXT_CHAR_LENGTH, InputType::Text, &arguments)?;
+    let outcome = rule.validate(
+        ValidationValue::Text("éa"),
+        &BoundValidationContext::new(&[]),
+    )?;
+    assert!(matches!(outcome, qubit_validator::ValidationOutcome::Valid));
+    Ok(())
+}
 ```
 
 ## Advanced Usage
