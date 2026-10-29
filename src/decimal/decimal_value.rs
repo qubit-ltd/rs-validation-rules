@@ -18,14 +18,30 @@ use qubit_validator::Validator;
 use super::decimal_value_error::DecimalValueError;
 use crate::collection::Range;
 
+/// Maximum estimated decimal-digit work for checking a finite endpoint.
+///
+/// This feasibility-calculation budget is distinct from the raw-literal UTF-8
+/// byte limit used by dynamic registration. It is not a runtime input limit.
 const MAX_DECIMAL_FEASIBILITY_DIGITS: u64 = 131_072;
 
-/// Rejects endpoints whose scale adjustment could exceed the feasibility
-/// budget.
+/// Rejects a raw finite endpoint whose scale adjustment exceeds the budget.
 ///
-/// The estimate is checked before comparison or rounding so extreme exponents
-/// cannot trigger unbounded intermediate work. The parameter name is retained
-/// in the binding error to identify which endpoint exceeded the budget.
+/// The estimate is `coefficient_digits + abs(scale-endpoint_scale) + 1` and is
+/// checked before comparison, precision-domain clipping, or grid feasibility
+/// work. Each endpoint is checked independently, including a single-sided
+/// endpoint. The limit rejects estimates above 131,072.
+///
+/// # Parameters
+/// - `value`: Raw finite endpoint supplied to typed construction.
+/// - `scale`: Target decimal scale used by the rule.
+/// - `parameter`: Endpoint parameter name (`min` or `max`) for error context.
+///
+/// # Returns
+/// Returns `Ok(())` when the estimate is within the supported budget.
+///
+/// # Errors
+/// Returns `ParameterOutOfRange` with `parameter` when the estimate exceeds
+/// 131,072; the endpoint value is not retained in the error.
 fn check_endpoint_cost(value: &BigDecimal, scale: u16, parameter: &str) -> Result<(), BindError> {
     let source_scale = i128::from(value.fractional_digit_count());
     let scale_delta = (i128::from(scale) - source_scale).unsigned_abs();
@@ -42,6 +58,17 @@ fn check_endpoint_cost(value: &BigDecimal, scale: u16, parameter: &str) -> Resul
 
 /// Reports whether a decimal satisfies both optional inclusive or exclusive
 /// bounds.
+///
+/// # Parameters
+/// - `value`: Decimal value to compare with the bounds.
+/// - `min`: Optional lower bound; `None` or `Some(Bound::Unbounded)` imposes no
+///   lower restriction.
+/// - `max`: Optional upper bound; `None` or `Some(Bound::Unbounded)` imposes no
+///   upper restriction.
+///
+/// # Returns
+/// Returns `true` only when `value` satisfies both present bounds, respecting
+/// their inclusive or exclusive kind.
 fn satisfies_bounds(value: &BigDecimal, min: &Option<Bound<BigDecimal>>, max: &Option<Bound<BigDecimal>>) -> bool {
     let above_min = match min {
         None | Some(Bound::Unbounded) => true,
@@ -63,7 +90,27 @@ fn satisfies_bounds(value: &BigDecimal, min: &Option<Bound<BigDecimal>>, max: &O
 /// candidate up from the lower bound or down from the upper bound and checks it
 /// against the original inclusive or exclusive bounds. `Ok(false)` means no
 /// representable value exists; `Err` means feasibility calculations exceeded
-/// their supported range.
+/// their supported range. With no precision cap and at least one unbounded
+/// side, it returns `Ok(true)` immediately because the scale grid extends
+/// without bound in that direction.
+///
+/// # Parameters
+/// - `precision`: Optional maximum total precision; `None` leaves the domain
+///   unbounded by precision.
+/// - `scale`: Scale defining the decimal grid to search.
+/// - `min`: Optional inclusive or exclusive lower endpoint; `None` or
+///   `Some(Bound::Unbounded)` is unbounded below.
+/// - `max`: Optional inclusive or exclusive upper endpoint; `None` or
+///   `Some(Bound::Unbounded)` is unbounded above.
+///
+/// # Returns
+/// Returns `Ok(true)` if a value on the scale grid lies within the interval,
+/// `Ok(false)` if no such value exists, or an error if feasibility calculations
+/// exceed the supported range.
+///
+/// # Errors
+/// Returns `ParameterOutOfRange` with `precision` if constructing the precision
+/// domain exceeds the supported calculation range.
 fn has_representable_value(
     precision: Option<u16>,
     scale: u16,
@@ -261,7 +308,17 @@ impl DecimalValue {
     }
 }
 
-/// Borrows a finite endpoint while preserving its inclusive or exclusive kind.
+/// Borrows a bound's endpoint while preserving its bound kind.
+///
+/// # Type Parameters
+/// - `T`: Endpoint type stored by the bound.
+///
+/// # Parameters
+/// - `bound`: Bound whose finite endpoint is borrowed.
+///
+/// # Returns
+/// Returns the corresponding `Bound<&T>`: `Included` and `Excluded` retain
+/// their kind and borrow the endpoint, while `Unbounded` remains unbounded.
 fn borrow_bound<T>(bound: &Bound<T>) -> Bound<&T> {
     match bound {
         Bound::Included(value) => Bound::Included(value),
