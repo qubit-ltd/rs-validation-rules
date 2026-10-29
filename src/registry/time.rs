@@ -25,6 +25,7 @@ use qubit_validator::ValidatorRegistration;
 use qubit_validator::ValidatorSignature;
 use qubit_validator::ViolationCode;
 use qubit_validator::ViolationDraft;
+use qubit_validator::ViolationParam;
 use qubit_validator::prepare_typed_validator;
 #[cfg(feature = "inventory")]
 use qubit_validator::register_validator;
@@ -40,23 +41,34 @@ const EMPTY_DEPS: &[DependencySpec] = &[];
 /// - `reader`: Reader containing the required `precision` parameter.
 ///
 /// # Returns
-/// The precision mapped from `second`, `millisecond`, `microsecond`, or
-/// `nanosecond`.
+/// The precision mapped from the accepted token, together with that static
+/// token for structured violation reporting.
 ///
 /// # Errors
 /// Returns a bind error when `precision` is missing or has an unsupported
 /// value. The binding flow reports duplicate and unknown parameters.
-fn read_rule(reader: &mut ArgumentReader<'_>) -> Result<TimePrecision, BindError> {
-    let resolution = match reader.required_str("precision")? {
-        "second" => TemporalResolution::Second,
-        "millisecond" => TemporalResolution::Millisecond,
-        "microsecond" => TemporalResolution::Microsecond,
-        "nanosecond" => TemporalResolution::Nanosecond,
+fn read_rule(reader: &mut ArgumentReader<'_>) -> Result<(TimePrecision, &'static str), BindError> {
+    let (resolution, token) = match reader.required_str("precision")? {
+        "second" => (TemporalResolution::Second, "second"),
+        "millisecond" => (TemporalResolution::Millisecond, "millisecond"),
+        "microsecond" => (TemporalResolution::Microsecond, "microsecond"),
+        "nanosecond" => (TemporalResolution::Nanosecond, "nanosecond"),
         _ => {
             return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter("precision"));
         }
     };
-    Ok(TimePrecision::new(resolution))
+    Ok((TimePrecision::new(resolution), token))
+}
+
+/// Builds the structured violation for a rejected temporal precision.
+///
+/// # Parameters
+/// - `precision`: Static token identifying the configured precision.
+///
+/// # Returns
+/// A violation draft containing the stable precision code and configured token.
+fn precision_violation(precision: &'static str) -> ViolationDraft {
+    ViolationDraft::new(ViolationCode::new("time.precision")).with_param("precision", ViolationParam::Token(precision))
 }
 
 /// Prepares the validator for UTC timestamps.
@@ -71,10 +83,10 @@ fn read_rule(reader: &mut ArgumentReader<'_>) -> Result<TimePrecision, BindError
 /// Returns a bind error when the precision is missing or unsupported. The
 /// binding flow reports duplicate and unknown parameters.
 fn prepare_utc(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    Ok(prepare_typed_validator::<DateTime<Utc>, _, _>(
-        read_rule(reader)?,
-        |_| ViolationDraft::new(ViolationCode::new("time.precision")),
-    ))
+    let (rule, precision) = read_rule(reader)?;
+    Ok(prepare_typed_validator::<DateTime<Utc>, _, _>(rule, move |_| {
+        precision_violation(precision)
+    }))
 }
 
 /// Prepares the validator for date-times without a timezone.
@@ -90,10 +102,10 @@ fn prepare_utc(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValida
 /// Returns a bind error when the precision is missing or unsupported. The
 /// binding flow reports duplicate and unknown parameters.
 fn prepare_date_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    Ok(prepare_typed_validator::<NaiveDateTime, _, _>(
-        read_rule(reader)?,
-        |_| ViolationDraft::new(ViolationCode::new("time.precision")),
-    ))
+    let (rule, precision) = read_rule(reader)?;
+    Ok(prepare_typed_validator::<NaiveDateTime, _, _>(rule, move |_| {
+        precision_violation(precision)
+    }))
 }
 
 /// Prepares the validator for times of day without a timezone.
@@ -108,8 +120,9 @@ fn prepare_date_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn Prepared
 /// Returns a bind error when the precision is missing or unsupported. The
 /// binding flow reports duplicate and unknown parameters.
 fn prepare_time(reader: &mut ArgumentReader<'_>) -> Result<Arc<dyn PreparedValidator>, BindError> {
-    Ok(prepare_typed_validator::<NaiveTime, _, _>(read_rule(reader)?, |_| {
-        ViolationDraft::new(ViolationCode::new("time.precision"))
+    let (rule, precision) = read_rule(reader)?;
+    Ok(prepare_typed_validator::<NaiveTime, _, _>(rule, move |_| {
+        precision_violation(precision)
     }))
 }
 
