@@ -63,6 +63,30 @@ fn test_decimal_public_endpoint_construction_cost() {
     }
     assert!(DecimalValue::new(None, 2, Some(Bound::Unbounded), None).is_ok());
     assert!(DecimalValue::new(None, 2, None, Some(Bound::Included(decimal("1.23")))).is_ok());
+
+    for endpoint_scale in [-131_070_i64, 131_070] {
+        let endpoint = BigDecimal::from_bigint(1.into(), endpoint_scale);
+        assert!(
+            DecimalValue::new(None, 0, Some(Bound::Included(endpoint.clone())), None).is_ok(),
+            "min at the exact cost limit must bind: {endpoint_scale}",
+        );
+        assert!(
+            DecimalValue::new(None, 0, None, Some(Bound::Included(endpoint))).is_ok(),
+            "max at the exact cost limit must bind: {endpoint_scale}",
+        );
+    }
+    for endpoint_scale in [-131_071_i64, 131_071, i64::MIN, i64::MAX] {
+        let endpoint = BigDecimal::from_bigint(1.into(), endpoint_scale);
+        for (min, max, parameter) in [
+            (Some(Bound::Included(endpoint.clone())), None, "min"),
+            (None, Some(Bound::Included(endpoint.clone())), "max"),
+        ] {
+            let error =
+                DecimalValue::new(None, 0, min, max).expect_err("endpoint cost must exceed the supported budget");
+            assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+            assert_eq!(error.parameter(), Some(parameter));
+        }
+    }
 }
 
 fn create_test_registry() -> ValidatorRegistry {

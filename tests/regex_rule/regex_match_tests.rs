@@ -266,3 +266,56 @@ fn test_regex_rejects_pattern_above_limit() {
     assert_eq!(error.parameter(), Some("pattern"));
     assert!(matches!(RegexMatch::new("["), Err(error) if error.kind() == BindErrorKind::InvalidPattern));
 }
+
+#[cfg(feature = "regex")]
+#[test]
+fn test_regex_public_compiled_program_limit() {
+    let pattern = r"\w{10000}";
+    assert!(pattern.len() < 4_096, "exercise compiled size, not body size");
+    let error = RegexMatch::new(pattern)
+        .err()
+        .expect("Unicode repetition must exceed the compiled program limit");
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("pattern"));
+    assert!(!format!("{error}").contains(pattern));
+    assert!(!format!("{error:?}").contains(pattern));
+
+    let registry = create_test_registry();
+    let arguments = [NamedValidationArgument::new(
+        "pattern",
+        ValidationArgument::String(pattern),
+    )];
+    let error = registry
+        .bind(ids::TEXT_REGEX, InputType::Text, &arguments)
+        .expect_err("the registry must enforce the compiled program limit");
+    assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
+    assert_eq!(error.parameter(), Some("pattern"));
+    assert!(!format!("{error}").contains(pattern));
+    assert!(!format!("{error:?}").contains(pattern));
+
+    let accepted = "abcdefghijklmnop";
+    let control = r"[a-z]{16}";
+    let typed = RegexMatch::new(control).expect("small program must compile");
+    assert_eq!(typed.validate(accepted, &()), Ok(()));
+    assert_eq!(typed.validate("short", &()), Err(TextRuleError::Pattern));
+    let arguments = [NamedValidationArgument::new(
+        "pattern",
+        ValidationArgument::String(control),
+    )];
+    let bound = registry
+        .bind(ids::TEXT_REGEX, InputType::Text, &arguments)
+        .expect("small program must bind");
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(
+        bound
+            .validate(ValidationValue::Text(accepted), &context)
+            .expect("execute"),
+        ValidationOutcome::Valid,
+    );
+    assert!(matches!(
+        bound
+            .validate(ValidationValue::Text("short"), &context)
+            .expect("execute"),
+        ValidationOutcome::Invalid(_),
+    ));
+}

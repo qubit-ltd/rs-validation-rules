@@ -7,6 +7,7 @@
 // =============================================================================
 
 use std::cell::Cell;
+use std::cmp::Ordering;
 use std::ops::Bound;
 use std::rc::Rc;
 
@@ -30,6 +31,54 @@ use qubit_validator::ValidatorRegistry;
 use qubit_validator::ViolationParam;
 
 const ITEM_COUNT_ID: &str = "qubit.rules.collection.item_count";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DisjointOrder {
+    branch: u8,
+    value: u8,
+}
+
+impl PartialOrd for DisjointOrder {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.branch == other.branch {
+            self.value.partial_cmp(&other.value)
+        } else {
+            None
+        }
+    }
+}
+
+#[test]
+fn test_range_rejects_distinct_unordered_endpoints() {
+    let lower = DisjointOrder { branch: 0, value: 1 };
+    let upper = DisjointOrder { branch: 1, value: 3 };
+    assert_eq!(lower.partial_cmp(&lower), Some(Ordering::Equal));
+    assert_eq!(upper.partial_cmp(&upper), Some(Ordering::Equal));
+    assert_eq!(lower.partial_cmp(&upper), None);
+    for lower in [Bound::Included(lower), Bound::Excluded(lower)] {
+        for upper in [Bound::Included(upper), Bound::Excluded(upper)] {
+            let error = Range::new(lower, upper).expect_err("distinct branches are unordered");
+            assert_eq!(error.kind(), BindErrorKind::InvalidBounds);
+        }
+    }
+}
+
+#[test]
+fn test_range_rejects_distinct_unordered_values() {
+    let endpoint = DisjointOrder { branch: 0, value: 2 };
+    let value = DisjointOrder { branch: 1, value: 2 };
+    assert_eq!(value.partial_cmp(&value), Some(Ordering::Equal));
+    for endpoint in [Bound::Included(endpoint), Bound::Excluded(endpoint)] {
+        let lower = Range::new(endpoint, Bound::Unbounded).expect("valid lower endpoint");
+        assert_eq!(lower.validate(&value, &()), Err(RangeError::Unordered));
+        let upper = Range::new(Bound::Unbounded, endpoint).expect("valid upper endpoint");
+        assert_eq!(upper.validate(&value, &()), Err(RangeError::Unordered));
+    }
+    let lower = DisjointOrder { branch: 0, value: 1 };
+    let upper = DisjointOrder { branch: 0, value: 3 };
+    let range = Range::new(Bound::Included(lower), Bound::Included(upper)).expect("one branch is ordered");
+    assert_eq!(range.validate(&endpoint, &()), Ok(()));
+}
 
 #[test]
 fn test_unique_pairs_emits_each_pair_in_duplicate_search_order() {

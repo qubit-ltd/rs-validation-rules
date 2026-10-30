@@ -388,18 +388,3 @@ impl Validator<BigDecimal, ()> for DecimalValue {
         self.range.validate(value, &()).map_err(|_| DecimalValueError::Range)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use bigdecimal::BigDecimal;
-
-    use super::check_endpoint_cost;
-
-    #[test]
-    fn test_decimal_core_raw_endpoint_cost() {
-        assert!(check_endpoint_cost(&BigDecimal::from_bigint(1.into(), -131_070), 0, "min").is_ok());
-        for exponent in [i64::MIN, i64::MAX] {
-            assert!(check_endpoint_cost(&BigDecimal::from_bigint(1.into(), exponent), 0, "max").is_err());
-        }
-    }
-}
