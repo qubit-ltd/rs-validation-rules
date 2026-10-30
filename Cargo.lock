@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "qubit-validation-rules"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -130,6 +130,8 @@ dependencies = [
 [[package]]
 name = "qubit-validator"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d20a473de60ce94ad09ff2e60a4d863f8c6c0d365fa43994b58dc1025b4ddd9b"
 dependencies = [
  "inventory",
  "thiserror",
