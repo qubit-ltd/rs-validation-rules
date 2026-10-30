@@ -405,9 +405,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   nanosecond component must divide evenly by the selected unit; no rounding or
   date adjustment occurs.
 - `RegexMatch::new` and the `ids::TEXT_REGEX` registration accept a pattern body
-  of at most 4,096 UTF-8 bytes. The approximate compiled-program size limit is 8 MiB and
-  the lazy DFA cache to 2 MiB per rule. Body AST nesting depth is limited to
-  250; deeper bodies return `InvalidPattern`. The internal full-match wrapper
+  of at most 4,096 UTF-8 bytes. The approximate compiled-program size limit is 8 MiB.
+  The lazy DFA transition cache is configured with an approximate capacity of 2 MiB.
+  This is not a total memory limit for a rule or process: concurrent searches may
+  use multiple caches, and other regex engine allocations are separate. Body AST
+  nesting depth is limited to 250; deeper bodies return `InvalidPattern`. The internal full-match wrapper
   has a separate allowance and does not consume that body budget. AST depth is
   not a count of pattern parentheses. The rule does not impose a matching
   input length limit; applications must enforce one at their input boundary.

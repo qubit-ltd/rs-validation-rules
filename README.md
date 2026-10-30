@@ -91,11 +91,14 @@ canonical UUID text, mainland China mobile-number structure, and optionally
 regular expressions. `Range<T>` and `ChinaIdentity18Structure` are typed rules;
 the latter is deliberately absent from the built-in dynamic registrations.
 With `regex`, `RegexMatch` limits pattern bodies to 4,096 UTF-8 bytes, sets an
-approximate compiled-program size limit of 8 MiB, and caps each lazy DFA cache
-at 2 MiB. Construction and binding report oversized patterns or programs as
-`ParameterOutOfRange(pattern)` and invalid syntax as `InvalidPattern`. Pattern
-body AST nesting depth is limited to 250; deeper patterns return `InvalidPattern`.
-Applications must bound matching input length at their input boundary.
+approximate compiled-program size limit of 8 MiB, and configures the lazy DFA
+transition cache with an approximate capacity of 2 MiB. This is not a total
+memory limit for a rule or process: concurrent searches may use multiple
+caches, and other regex engine allocations are separate. Construction and
+binding report oversized patterns or programs as `ParameterOutOfRange(pattern)`
+and invalid syntax as `InvalidPattern`. Pattern body AST nesting depth is
+limited to 250; deeper patterns return `InvalidPattern`. Applications must
+bound matching input length at their input boundary.
 
 When `qubit-model-metadata` executes declarations, generated borrowed adapters
 support applicable selectors over borrowed `Vec<T>` and array elements, and

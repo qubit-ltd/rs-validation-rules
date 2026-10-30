@@ -20,7 +20,7 @@ use crate::text::TextRuleError;
 const MAX_PATTERN_BYTES: usize = 4_096;
 /// Approximate maximum compiled regex program size in bytes.
 const MAX_COMPILED_BYTES: usize = 8 * 1024 * 1024;
-/// Maximum lazy DFA transition cache size in bytes.
+/// Approximate lazy DFA transition cache capacity in bytes.
 const MAX_DFA_CACHE_BYTES: usize = 2 * 1024 * 1024;
 /// Maximum AST nesting depth accepted for a caller-supplied pattern body.
 const MAX_PATTERN_NESTING: u32 = 250;
@@ -72,10 +72,13 @@ fn compile_with_limits(pattern: &str, program_limit: usize, dfa_limit: usize) ->
 /// Anchors are added by the constructor, so callers provide only the pattern
 /// body. The match is Unicode-aware according to the regex crate's defaults.
 /// Pattern bodies are limited to 4,096 UTF-8 bytes, compiled programs to
-/// approximately 8 MiB, lazy DFA caches to 2 MiB per rule, and AST nesting
-/// depth to 250. The internal full-match wrapper uses a separate two-level
-/// allowance for its concatenation and non-capturing group, so it does not
-/// consume the body's budget. AST nesting depth is not the same as counting
+/// approximately 8 MiB, and AST nesting depth to 250. The lazy DFA transition
+/// cache is configured with an approximate capacity of 2 MiB. This is not a
+/// total memory limit for a rule or process: concurrent searches may use
+/// multiple caches, and other regex engine allocations are separate. The
+/// internal full-match wrapper uses a separate two-level allowance for its
+/// concatenation and non-capturing group, so it does not consume the body's
+/// budget. AST nesting depth is not the same as counting
 /// parentheses in the pattern. Bodies exceeding the depth limit return
 /// `InvalidPattern`. Input length is controlled by the caller.
 ///
@@ -112,8 +115,10 @@ impl RegexMatch {
     /// `InvalidPattern` for invalid regex syntax or an AST nesting depth above
     /// 250. AST depth is not equivalent to the number of parentheses in the
     /// pattern; the internal concatenation and non-capturing wrapper use a
-    /// separate two-level allowance. The lazy DFA cache is limited to 2 MiB
-    /// per rule.
+    /// separate two-level allowance. The lazy DFA transition cache is
+    /// configured with an approximate capacity of 2 MiB. This is not a total
+    /// memory limit for a rule or process: concurrent searches may use
+    /// multiple caches, and other regex engine allocations are separate.
     pub fn new(pattern: &str) -> Result<Self, BindError> {
         if pattern.len() > MAX_PATTERN_BYTES {
             return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter("pattern"));

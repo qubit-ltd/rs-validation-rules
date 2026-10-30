@@ -359,8 +359,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
   不舍入，也不调整日期。
 - `RegexMatch::new` 和 `ids::TEXT_REGEX` 注册项接受的模式正文最多为 4,096 个 UTF-8
-  字节。编译程序的近似大小上限为 8 MiB，单条规则的惰性 DFA 缓存上限为 2 MiB。规则本身不限制
-  待匹配文本长度；正文 AST 嵌套深度上限为 250，超限返回 `InvalidPattern`。内部全串匹配包装
+  字节。编译程序的近似大小上限为 8 MiB。惰性 DFA 转移缓存的近似容量配置为 2 MiB。这不是
+  单条规则或整个进程的总内存上限：并发搜索可能使用多份缓存，正则引擎还会有其他内存分配。规则
+  本身不限制待匹配文本长度；正文 AST 嵌套深度上限为 250，超限返回 `InvalidPattern`。内部全串匹配包装
   使用独立余量，不消耗正文预算。AST 深度不等同于模式中的括号数量；应用应在输入入口设置长度上限。
 - 注册 ID `qubit.rules.text.email_ascii` 保持不变。模型声明要把 `format = email` 改为
   `format = email_ascii`，Rust 枚举用 `TextFormat::EmailAscii` 取代 `TextFormat::Email`。

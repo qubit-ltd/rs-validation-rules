@@ -84,8 +84,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 中国大陆手机号结构，以及可选的正则表达式。`Range<T>` 与
 `ChinaIdentity18Structure` 是类型化规则；后者有意不加入内置动态注册项。
 启用 `regex` 后，`RegexMatch` 将模式正文限制在 4,096 个 UTF-8 字节以内，编译程序的
-近似大小上限设为 8 MiB，单条规则的惰性 DFA 缓存限制为 2 MiB。正文 AST 嵌套深度最多为
-250，超过时返回 `InvalidPattern`。模式或编译程序超限时，构造和绑定返回
+近似大小上限设为 8 MiB，惰性 DFA 转移缓存的近似容量配置为 2 MiB。这不是单条规则或整个
+进程的总内存上限：并发搜索可能使用多份缓存，正则引擎还会有其他内存分配。正文 AST 嵌套深度
+最多为 250，超过时返回 `InvalidPattern`。模式或编译程序超限时，构造和绑定返回
 `ParameterOutOfRange(pattern)`；语法错误也返回 `InvalidPattern`。
 应用仍需在输入入口限制待匹配文本的长度。
 
