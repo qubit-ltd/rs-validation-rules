@@ -99,6 +99,47 @@ fn test_extended_comment_pattern_preserves_full_string_matching() {
 }
 
 #[test]
+fn test_regex_body_nesting_budget_survives_full_match_wrapper() {
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    for depth in [248, 249, 250] {
+        let body = format!("{}a{}", "(?:".repeat(depth), ")".repeat(depth));
+        assert!(Regex::new(&body).is_ok());
+        let patterns = if depth < 250 {
+            vec![body.clone(), format!("(?x){body} # trailing comment")]
+        } else {
+            vec![body.clone()]
+        };
+        for pattern in patterns {
+            assert!(Regex::new(&pattern).is_ok(), "raw body should fit at depth {depth}");
+            let typed = RegexMatch::new(&pattern).expect("body fits nesting budget");
+            let args = [NamedValidationArgument::new(
+                "pattern",
+                ValidationArgument::String(&pattern),
+            )];
+            let bound = registry.bind(ids::TEXT_REGEX, InputType::Text, &args).unwrap();
+            for (text, accepted) in [("a", true), ("xa", false), ("ax", false), ("a\n", false)] {
+                assert_eq!(typed.validate(text, &()).is_ok(), accepted, "depth={depth}");
+                let outcome = bound
+                    .validate(ValidationValue::Text(text), &BoundValidationContext::new(&[]))
+                    .unwrap();
+                assert_eq!(matches!(outcome, ValidationOutcome::Valid), accepted);
+            }
+        }
+    }
+    let too_deep = format!("{}a{}", "(?:".repeat(251), ")".repeat(251));
+    let error = RegexMatch::new(&too_deep).err().expect("body exceeds nesting budget");
+    assert_eq!(error.kind(), BindErrorKind::InvalidPattern);
+    assert!(!format!("{error:?} {error}").contains(&too_deep));
+    let args = [NamedValidationArgument::new(
+        "pattern",
+        ValidationArgument::String(&too_deep),
+    )];
+    let error = registry.bind(ids::TEXT_REGEX, InputType::Text, &args).unwrap_err();
+    assert_eq!(error.kind(), BindErrorKind::InvalidPattern);
+    assert!(!format!("{error:?} {error}").contains(&too_deep));
+}
+
+#[test]
 fn test_ordinary_patterns_and_invalid_bodies_keep_their_meaning() {
     let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
     for (pattern, accepted, rejected) in [
