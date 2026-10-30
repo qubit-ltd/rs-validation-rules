@@ -214,3 +214,14 @@ fn test_invalid_rule_parameters_are_rejected_during_binding() {
         BindErrorKind::UnknownParameter
     );
 }
+
+#[test]
+fn test_registered_non_blank_maps_unicode_whitespace_to_blank() {
+    let registry = create_test_registry();
+    let outcome = validate_text_rule(&registry, TEXT_NON_BLANK, &[], "\u{3000}");
+    let ValidationOutcome::Invalid(violations) = outcome else {
+        panic!("Unicode whitespace must produce an invalid outcome");
+    };
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].code().as_str(), "text.blank");
+}
