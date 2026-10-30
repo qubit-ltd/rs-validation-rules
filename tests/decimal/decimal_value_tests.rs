@@ -7,9 +7,12 @@
 // =============================================================================
 
 use std::ops::Bound;
+use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
 use qubit_validation_rules::decimal::DecimalValue;
+use qubit_validation_rules::decimal::DecimalValueError;
+use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
 use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
@@ -34,10 +37,6 @@ fn violation_code(outcome: ValidationOutcome) -> String {
 
 #[test]
 fn test_decimal_public_endpoint_construction_cost() {
-    use std::ops::Bound;
-
-    use qubit_validation_rules::decimal::DecimalValue;
-
     let huge = BigDecimal::from_bigint(1.into(), -131_071);
     for (precision, min, max, parameter) in [
         (None, Some(Bound::Included(huge.clone())), None, "min"),
@@ -93,18 +92,8 @@ fn create_test_registry() -> ValidatorRegistry {
     ValidatorRegistry::from_registrations(registrations()).expect("standard registrations are valid")
 }
 
-#[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_empty_domain_is_rejected_at_construction() {
-    use std::ops::Bound;
-    use std::str::FromStr;
-
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::decimal::DecimalValue;
-    use qubit_validation_rules::ids;
-    use qubit_validator::BindErrorKind;
-    use qubit_validator::InputType;
-
     let decimal = |value| BigDecimal::from_str(value).unwrap();
     let invalid = [
         (Some(1), 0, Some(Bound::Included(decimal("100"))), None),
@@ -174,16 +163,8 @@ fn test_decimal_empty_domain_is_rejected_at_construction() {
     assert_eq!(oversized_error.parameter(), Some("min"));
     assert!(!format!("{oversized_error:?}").contains(&oversized_min));
 }
-#[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_value_normalization_bounds_and_registration() {
-    use std::str::FromStr;
-
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::decimal::DecimalValue;
-    use qubit_validation_rules::decimal::DecimalValueError;
-    use qubit_validation_rules::ids;
-
     let decimal = |value| BigDecimal::from_str(value).unwrap();
     let rule = DecimalValue::new(
         Some(3),
@@ -359,12 +340,8 @@ fn test_decimal_value_normalization_bounds_and_registration() {
         );
     }
 }
-#[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_value_debug_redacts_endpoint_values() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::decimal::DecimalValue;
-
     let min = "98765.4321".parse::<BigDecimal>().unwrap();
     let max = "98766.4321".parse::<BigDecimal>().unwrap();
     let rule = DecimalValue::new(None, 4, Some(Bound::Included(min)), Some(Bound::Excluded(max))).unwrap();
@@ -374,13 +351,8 @@ fn test_decimal_value_debug_redacts_endpoint_values() {
     assert!(!debug.contains("987654321"), "{debug}");
     assert!(!debug.contains("987664321"), "{debug}");
 }
-#[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_value_extreme_exponent_does_not_overflow_normalization() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::decimal::DecimalValue;
-    use qubit_validation_rules::decimal::DecimalValueError;
-
     let value = BigDecimal::new(10.into(), i64::MIN);
     let one_digit = DecimalValue::new(Some(1), 0, None, None).unwrap();
     assert_eq!(one_digit.validate(&value, &()), Err(DecimalValueError::Precision));

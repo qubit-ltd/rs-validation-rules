@@ -6,7 +6,13 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+#[cfg(feature = "decimal")]
+use bigdecimal::BigDecimal;
+#[cfg(feature = "decimal")]
+use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
+#[cfg(feature = "decimal")]
+use qubit_validator::BindErrorKind;
 use qubit_validator::BoundValidationContext;
 use qubit_validator::InputType;
 use qubit_validator::NamedValidationArgument;
@@ -14,13 +20,15 @@ use qubit_validator::ValidationArgument;
 use qubit_validator::ValidationOutcome;
 use qubit_validator::ValidationValue;
 use qubit_validator::ValidatorRegistry;
+#[cfg(feature = "decimal")]
+use qubit_validator::ViolationParam;
 
 fn create_test_registry() -> ValidatorRegistry {
     ValidatorRegistry::from_registrations(registrations()).expect("standard registrations are valid")
 }
 
-fn violation_code(outcome: qubit_validator::ValidationOutcome) -> String {
-    let qubit_validator::ValidationOutcome::Invalid(violations) = outcome else {
+fn violation_code(outcome: ValidationOutcome) -> String {
+    let ValidationOutcome::Invalid(violations) = outcome else {
         panic!("expected an invalid outcome, got {outcome:?}");
     };
     violations[0].code().as_str().to_owned()
@@ -29,10 +37,6 @@ fn violation_code(outcome: qubit_validator::ValidationOutcome) -> String {
 #[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_registry_endpoint_string_syntax() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::ids;
-    use qubit_validator::BindErrorKind;
-
     let registry = create_test_registry();
     let cases = [
         ("0", true),
@@ -74,15 +78,6 @@ fn test_decimal_registry_endpoint_string_syntax() {
 #[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_registry_endpoint_cost_and_grid() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::ids;
-    use qubit_validation_rules::registrations;
-    use qubit_validator::BindErrorKind;
-    use qubit_validator::InputType;
-    use qubit_validator::NamedValidationArgument;
-    use qubit_validator::ValidationArgument;
-    use qubit_validator::ValidatorRegistry;
-
     let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
     let huge = "9".repeat(131_072);
     for (min, max, parameter) in [
@@ -132,15 +127,6 @@ fn test_decimal_registry_endpoint_cost_and_grid() {
 #[cfg(feature = "decimal")]
 #[test]
 fn test_decimal_registry_endpoint_literal_length() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::ids;
-    use qubit_validation_rules::registrations;
-    use qubit_validator::BindErrorKind;
-    use qubit_validator::InputType;
-    use qubit_validator::NamedValidationArgument;
-    use qubit_validator::ValidationArgument;
-    use qubit_validator::ValidatorRegistry;
-
     let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
     let at_limit = "0".repeat(131_072);
     let oversized = "0".repeat(131_073);
@@ -182,9 +168,6 @@ fn test_decimal_registry_endpoint_literal_length() {
 #[cfg(feature = "decimal")]
 #[test]
 fn test_registered_decimal_max_bound_is_exact_and_exclusive() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::ids;
-
     let registry = create_test_registry();
     let args = [
         NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
@@ -212,9 +195,6 @@ fn test_registered_decimal_max_bound_is_exact_and_exclusive() {
 #[cfg(feature = "decimal")]
 #[test]
 fn test_registered_decimal_optional_min_bound_uses_string_literal() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::ids;
-
     let registry = create_test_registry();
     let args = [
         NamedValidationArgument::new("scale", ValidationArgument::Unsigned(2)),
@@ -243,18 +223,6 @@ fn test_registered_decimal_optional_min_bound_uses_string_literal() {
 #[cfg(feature = "decimal")]
 #[test]
 fn test_registered_decimal_preserves_violation_parameters() {
-    use bigdecimal::BigDecimal;
-    use qubit_validation_rules::ids;
-    use qubit_validation_rules::registrations;
-    use qubit_validator::BoundValidationContext;
-    use qubit_validator::InputType;
-    use qubit_validator::NamedValidationArgument;
-    use qubit_validator::ValidationArgument;
-    use qubit_validator::ValidationOutcome;
-    use qubit_validator::ValidationValue;
-    use qubit_validator::ValidatorRegistry;
-    use qubit_validator::ViolationParam;
-
     let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
     let context = BoundValidationContext::new(&[]);
     let scalar_args = [

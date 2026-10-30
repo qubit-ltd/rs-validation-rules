@@ -11,7 +11,7 @@ use qubit_validator::BindErrorKind;
 use qubit_validator::Validator;
 
 use super::TextLengthError;
-use super::below_min;
+use super::bounds::below_min;
 
 /// Bounds the number of Unicode scalar values in text, not grapheme clusters.
 ///

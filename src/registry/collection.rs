@@ -27,6 +27,8 @@ use qubit_validator::register_validator;
 
 use crate::collection::ItemCount;
 use crate::collection::ItemCountError;
+use crate::ids::COLLECTION_ITEM_COUNT;
+
 /// Collection rules do not read any validation dependencies.
 const EMPTY_DEPS: &[DependencySpec] = &[];
 
@@ -58,7 +60,7 @@ const COUNT_SIG: ValidatorSignature = ValidatorSignature::new(InputType::of::<us
 pub(super) static DESC_COUNT: ValidatorDescriptor = ValidatorDescriptor::new(&[COUNT_SIG]);
 /// Registration shared by the local and optional inventory registries.
 pub(super) const REG_COUNT: ValidatorRegistration = ValidatorRegistration::new(
-    ValidatorId::new(crate::ids::COLLECTION_ITEM_COUNT),
+    ValidatorId::new(COLLECTION_ITEM_COUNT),
     &DESC_COUNT,
     RegistrationSource::new(env!("CARGO_PKG_NAME"), module_path!(), file!(), line!()),
 );

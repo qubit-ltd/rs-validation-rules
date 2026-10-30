@@ -8,10 +8,10 @@
 
 //! Structural parsing for 18-character mainland China identity numbers.
 
-mod china_identity18_structure;
+mod china_identity18_structure_mod;
 mod china_identity_error;
 mod china_identity_facts;
 
 pub use china_identity_error::ChinaIdentityError;
 pub use china_identity_facts::ChinaIdentityFacts;
-pub use china_identity18_structure::ChinaIdentity18Structure;
+pub use china_identity18_structure_mod::ChinaIdentity18Structure;

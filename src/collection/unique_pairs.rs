@@ -52,9 +52,14 @@ impl UniquePairs {
 }
 
 impl Iterator for UniquePairs {
+    /// The next pair of indices in duplicate-search order.
     type Item = (usize, usize);
 
-    /// Returns the next pair, or `None` after all pairs have been emitted.
+    /// Returns the next pair in duplicate-search order.
+    ///
+    /// # Returns
+    /// - `Some((first, second))` when another unique pair is available.
+    /// - `None` after all pairs have been emitted.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.second >= self.len {

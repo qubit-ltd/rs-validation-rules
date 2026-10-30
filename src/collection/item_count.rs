@@ -25,6 +25,7 @@ use super::item_count_error::ItemCountError;
 /// assert!(rule.validate(&1, &()).is_err());
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[must_use]
 pub struct ItemCount {
     /// Inclusive lower count bound, when configured.
     min: Option<usize>,

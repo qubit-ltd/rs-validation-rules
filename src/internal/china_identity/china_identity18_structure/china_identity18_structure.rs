@@ -11,8 +11,8 @@ use std::str::from_utf8;
 use chrono::NaiveDate;
 use qubit_validator::Validator;
 
-use super::china_identity_error::ChinaIdentityError;
-use super::china_identity_facts::ChinaIdentityFacts;
+use super::super::china_identity_error::ChinaIdentityError;
+use super::super::china_identity_facts::ChinaIdentityFacts;
 
 /// Validates the structure of an 18-character mainland China identity number.
 ///

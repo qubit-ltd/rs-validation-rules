@@ -69,6 +69,8 @@ fn check_endpoint_cost(value: &BigDecimal, scale: u16, parameter: &str) -> Resul
 /// # Returns
 /// Returns `true` only when `value` satisfies both present bounds, respecting
 /// their inclusive or exclusive kind.
+#[must_use]
+#[inline]
 fn satisfies_bounds(value: &BigDecimal, min: &Option<Bound<BigDecimal>>, max: &Option<Bound<BigDecimal>>) -> bool {
     let above_min = match min {
         None | Some(Bound::Unbounded) => true,
@@ -200,6 +202,7 @@ fn has_representable_value(
 /// let rule = DecimalValue::new(Some(3), 2, None, None).expect("valid rule");
 /// assert!(rule.validate(&"1.23".parse().expect("decimal"), &()).is_ok());
 /// ```
+#[must_use]
 #[derive(Clone)]
 pub struct DecimalValue {
     /// Maximum total precision, or no cap when `None`.
@@ -319,6 +322,8 @@ impl DecimalValue {
 /// # Returns
 /// Returns the corresponding `Bound<&T>`: `Included` and `Excluded` retain
 /// their kind and borrow the endpoint, while `Unbounded` remains unbounded.
+#[must_use]
+#[inline]
 fn borrow_bound<T>(bound: &Bound<T>) -> Bound<&T> {
     match bound {
         Bound::Included(value) => Bound::Included(value),

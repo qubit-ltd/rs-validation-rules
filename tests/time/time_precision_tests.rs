@@ -141,6 +141,7 @@ fn test_time_precision_every_resolution_on_each_chrono_type_across_utc_day() {
         assert_eq!(rule.validate(&prior_day, &()).is_ok(), accepted);
     }
 }
+
 #[cfg(feature = "time")]
 #[test]
 fn test_time_precision_on_all_chrono_inputs_and_registration() {

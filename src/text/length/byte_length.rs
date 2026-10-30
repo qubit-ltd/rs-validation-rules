@@ -11,8 +11,8 @@ use qubit_validator::BindErrorKind;
 use qubit_validator::Validator;
 
 use super::ByteLengthError;
-use super::above_max;
-use super::below_min;
+use super::bounds::above_max;
+use super::bounds::below_min;
 
 /// Bounds the UTF-8 byte length of text.
 ///

@@ -203,8 +203,6 @@ fn test_ordinary_patterns_and_invalid_bodies_keep_their_meaning() {
 #[cfg(feature = "regex")]
 #[test]
 fn test_regex_rule_compiles_and_matches_full_input() {
-    use qubit_validation_rules::regex_rule::RegexMatch;
-
     let rule = RegexMatch::new(r"[a-z]+@[a-z]+\.com").expect("valid regex");
     assert_eq!(rule.validate("user@example.com", &()), Ok(()));
     assert_eq!(
@@ -236,9 +234,6 @@ fn test_regex_rule_compiles_and_matches_full_input() {
 /// Typed and registered regex construction share the pattern byte limit.
 #[test]
 fn test_regex_rejects_pattern_above_limit() {
-    use qubit_validation_rules::ids;
-    use qubit_validation_rules::regex_rule::RegexMatch;
-
     let allowed = "a".repeat(4_096);
     assert!(
         RegexMatch::new(&allowed).is_ok(),

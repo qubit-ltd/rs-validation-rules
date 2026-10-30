@@ -13,6 +13,7 @@ use std::str::from_utf8;
 use qubit_validation_rules::identity::ChinaIdentity18Structure;
 #[cfg(feature = "china-identity")]
 use qubit_validation_rules::identity::ChinaIdentityError;
+#[cfg(feature = "china-identity")]
 use qubit_validator::Validator;
 
 #[cfg(feature = "china-identity")]
