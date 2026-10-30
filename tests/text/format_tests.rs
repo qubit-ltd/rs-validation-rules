@@ -6,6 +6,7 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 
+use qubit_validation_rules::ids;
 use qubit_validation_rules::registrations;
 use qubit_validation_rules::text::ChinaMobileStructure;
 use qubit_validation_rules::text::EmailAscii;
@@ -102,6 +103,48 @@ fn test_strict_text_profiles_accept_valid_and_reject_invalid_inputs() {
             "{invalid}"
         );
     }
+}
+
+#[test]
+fn test_uuid_shape_accepts_hex_case_and_rejects_equal_length_malformed_values() {
+    for value in [
+        "550e8400-e29b-41d4-a716-446655440000",
+        "550E8400-E29B-41D4-A716-446655440000",
+    ] {
+        assert_eq!(UuidText.validate(value, &()), Ok(()), "{value}");
+    }
+
+    for value in [
+        "550e8400_e29b-41d4-a716-446655440000",
+        "550e8400-e29b_41d4-a716-446655440000",
+        "550e8400-e29b-41d4_a716-446655440000",
+        "550e8400-e29b-41d4-a716_446655440000",
+        "g50e8400-e29b-41d4-a716-446655440000",
+        " 50e8400-e29b-41d4-a716-446655440000",
+        "-50e8400-e29b-41d4-a716-446655440000",
+    ] {
+        assert_eq!(value.len(), 36, "malformed UUID must remain 36 bytes: {value:?}");
+        assert_eq!(UuidText.validate(value, &()), Err(TextRuleError::Uuid), "{value:?}",);
+    }
+}
+
+#[test]
+fn test_registered_uuid_reports_structured_violation() {
+    let registry = ValidatorRegistry::from_registrations(registrations()).expect("standard registrations are valid");
+    let bound = registry
+        .bind(ids::TEXT_UUID, InputType::Text, &[])
+        .expect("UUID rule binds without arguments");
+    let value = "g50e8400-e29b-41d4-a716-446655440000";
+    assert_eq!(value.len(), 36);
+    let outcome = bound
+        .validate(ValidationValue::Text(value), &BoundValidationContext::new(&[]))
+        .expect("UUID rule executes");
+    let ValidationOutcome::Invalid(violations) = outcome else {
+        panic!("malformed UUID must produce a violation: {outcome:?}");
+    };
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].rule_id().as_str(), ids::TEXT_UUID);
+    assert_eq!(violations[0].code().as_str(), "text.uuid");
 }
 
 #[test]

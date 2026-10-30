@@ -208,6 +208,61 @@ fn test_discrete_open_interval_can_be_empty() {
     assert_eq!(error.kind(), BindErrorKind::InvalidBounds);
 }
 
+#[test]
+fn test_range_open_closed_endpoint_matrix() {
+    for lower_inclusive in [true, false] {
+        for upper_inclusive in [true, false] {
+            let lower = if lower_inclusive {
+                Bound::Included(2)
+            } else {
+                Bound::Excluded(2)
+            };
+            let upper = if upper_inclusive {
+                Bound::Included(5)
+            } else {
+                Bound::Excluded(5)
+            };
+            let rule = Range::new(lower, upper).expect("ordered endpoints form a valid range");
+            for (value, accepted) in [
+                (1, false),
+                (2, lower_inclusive),
+                (3, true),
+                (4, true),
+                (5, upper_inclusive),
+                (6, false),
+            ] {
+                let expected = if accepted { Ok(()) } else { Err(RangeError::OutOfRange) };
+                assert_eq!(
+                    rule.validate(&value, &()),
+                    expected,
+                    "lower_inclusive={lower_inclusive}, upper_inclusive={upper_inclusive}, value={value}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn test_range_included_singleton_accepts_only_endpoint() {
+    let rule = Range::new(Bound::Included(3), Bound::Included(3)).expect("an included singleton is nonempty");
+    assert_eq!(rule.validate(&3, &()), Ok(()));
+    for value in [2, 4] {
+        assert_eq!(rule.validate(&value, &()), Err(RangeError::OutOfRange));
+    }
+}
+
+#[test]
+fn test_range_equal_endpoints_with_exclusion_are_invalid() {
+    for (lower, upper) in [
+        (Bound::Included(3), Bound::Excluded(3)),
+        (Bound::Excluded(3), Bound::Excluded(3)),
+    ] {
+        let error = Range::new(lower, upper).expect_err("an excluded singleton is empty");
+        assert_eq!(error.kind(), BindErrorKind::InvalidBounds);
+    }
+    // The existing collection test covers (Excluded(3), Included(3)).
+}
+
 /// Uses the full platform count width for registry parameters and violations.
 #[cfg(target_pointer_width = "64")]
 #[test]
