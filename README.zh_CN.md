@@ -84,8 +84,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 中国大陆手机号结构，以及可选的正则表达式。`Range<T>` 与
 `ChinaIdentity18Structure` 是类型化规则；后者有意不加入内置动态注册项。
 启用 `regex` 后，`RegexMatch` 将模式正文限制在 4,096 个 UTF-8 字节以内，编译程序的
-近似大小上限设为 8 MiB，单条规则的惰性 DFA 缓存限制为 2 MiB。模式或编译程序超限时，
-构造和绑定返回 `ParameterOutOfRange(pattern)`；语法错误返回 `InvalidPattern`。
+近似大小上限设为 8 MiB，单条规则的惰性 DFA 缓存限制为 2 MiB。正文 AST 嵌套深度最多为
+250，超过时返回 `InvalidPattern`。模式或编译程序超限时，构造和绑定返回
+`ParameterOutOfRange(pattern)`；语法错误也返回 `InvalidPattern`。
 应用仍需在输入入口限制待匹配文本的长度。
 
 `qubit-model-metadata` 执行声明时，生成的借用适配器可对借用的 `Vec<T>` 和数组元素，
@@ -101,6 +102,10 @@ entry 数量复用 `ItemCount`；外层 sequence `unique_items` 使用元素相�
 局部 `ValidatorRegistry`，明确控制每个注册表的生命周期和内容。如果应用需要
 进程级自动发现，可以启用 `inventory`，使用 `ValidatorRegistry::global()` 和
 `register_validator!`。
+
+如果应用只通过字符串 ID 选择规则，应使用 `use qubit_validation_rules as _;` 确保规则
+crate 被链接；若代码中已有其他实际的规则 crate 引用，则无需重复匿名导入。详见
+[inventory 接入示例](doc/user_guide.zh_CN.md#inventory-接入示例)。
 
 绑定 `CharLength`、`ByteLength` 或 `ItemCount` 时，`min`、`max` 至少要提供一个；
 两者都缺省会返回 `BindErrorKind::InvalidBounds`。

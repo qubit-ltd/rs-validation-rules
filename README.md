@@ -93,7 +93,8 @@ the latter is deliberately absent from the built-in dynamic registrations.
 With `regex`, `RegexMatch` limits pattern bodies to 4,096 UTF-8 bytes, sets an
 approximate compiled-program size limit of 8 MiB, and caps each lazy DFA cache
 at 2 MiB. Construction and binding report oversized patterns or programs as
-`ParameterOutOfRange(pattern)` and invalid syntax as `InvalidPattern`.
+`ParameterOutOfRange(pattern)` and invalid syntax as `InvalidPattern`. Pattern
+body AST nesting depth is limited to 250; deeper patterns return `InvalidPattern`.
 Applications must bound matching input length at their input boundary.
 
 When `qubit-model-metadata` executes declarations, generated borrowed adapters
@@ -116,6 +117,10 @@ registry should have an explicit lifetime and contents. The `inventory`
 feature enables process-wide static discovery through
 `ValidatorRegistry::global()` and `register_validator!` for applications that
 choose global registration.
+
+For rules selected only by ID, ensure the rules crate is linked into the
+application with `use qubit_validation_rules as _;` unless another actual Rust
+reference already links it. See the [inventory integration example](doc/user_guide.md#inventory-integration-example).
 
 When binding `CharLength`, `ByteLength`, or `ItemCount`, supply at least one
 bound. Binding without `min` and `max` returns `BindErrorKind::InvalidBounds`.

@@ -138,6 +138,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 应用只需开启实际使用的 feature。`rs-model-metadata` 使用
 `registrations()` 建立局部注册表，该路径不需要启用 `inventory`。
 
+### Inventory 接入示例
+
+Cargo feature 决定编译哪些规则；仅添加依赖并不能保证没有 Rust 引用的规则 crate
+会被链接进最终应用。如果应用只通过 ID 选择规则，请添加下方匿名导入。若代码中已有
+其他实际的规则 crate 引用，则无需重复导入。可选规则还需要启用对应 feature。
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["inventory"] }
+qubit-validator = "0.1"
+```
+
+```rust
+use qubit_validation_rules as _;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::ValidatorRegistry;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::try_global()?;
+    assert!(registry.get("qubit.rules.text.email_ascii").is_some());
+    let rule = registry.bind("qubit.rules.text.email_ascii", InputType::Text, &[])?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(
+        rule.validate(ValidationValue::Text("user@example.com"), &context)?,
+        ValidationOutcome::Valid,
+    );
+    assert!(matches!(
+        rule.validate(ValidationValue::Text("invalid"), &context)?,
+        ValidationOutcome::Invalid(_),
+    ));
+    Ok(())
+}
+```
+
+如果全局注册表缺少内置 ID，请确认已启用 `inventory`，并在没有其他 Rust 引用时通过
+`use qubit_validation_rules as _;` 确保规则 crate 被链接。使用可选规则族时，也要启用其对应 feature。
+
 ### Decimal 接入示例
 
 支付接口收到金额后，通常要先确认它符合业务规定的小数精度，再进入后续处理。
@@ -320,7 +360,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   不舍入，也不调整日期。
 - `RegexMatch::new` 和 `ids::TEXT_REGEX` 注册项接受的模式正文最多为 4,096 个 UTF-8
   字节。编译程序的近似大小上限为 8 MiB，单条规则的惰性 DFA 缓存上限为 2 MiB。规则本身不限制
-  待匹配文本长度；应用应在输入入口设置长度上限。
+  待匹配文本长度；正文 AST 嵌套深度上限为 250，超限返回 `InvalidPattern`。内部全串匹配包装
+  使用独立余量，不消耗正文预算。AST 深度不等同于模式中的括号数量；应用应在输入入口设置长度上限。
 - 注册 ID `qubit.rules.text.email_ascii` 保持不变。模型声明要把 `format = email` 改为
   `format = email_ascii`，Rust 枚举用 `TextFormat::EmailAscii` 取代 `TextFormat::Email`。
 
@@ -467,6 +508,7 @@ Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`
 | 现象 | 检查方向 |
 | --- | --- |
 | 注册表绑定失败 | 核对规则 ID、`InputType`、参数名称和类型，以及所需 feature 是否启用。 |
+| 全局注册表缺少内置 ID | 确认已启用 `inventory`；若代码没有其他 Rust 引用，则通过 `use qubit_validation_rules as _;` 确保规则 crate 被链接；使用可选规则时启用对应 feature。 |
 | 正则模式无法构造 | 检查 `pattern` 的 UTF-8 字节数及编译上限；语法错误与资源超限使用不同错误种类。 |
 | `CharLength` 拒绝文本 | 检查 Unicode 标量值数量；一个可见字符可能由多个标量值组成。 |
 | `ByteLength` 拒绝文本 | 检查 UTF-8 字节数；非 ASCII 文本中的一个标量值通常占多个字节。 |

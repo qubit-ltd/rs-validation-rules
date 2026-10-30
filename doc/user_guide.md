@@ -152,6 +152,50 @@ not included in dynamic registrations. Enable only the features the application
 uses. `rs-model-metadata` builds a local registry from `registrations()` and
 does not need the `inventory` feature for that path.
 
+### Inventory integration example
+
+Cargo features select which rules are compiled, while a crate dependency alone
+does not guarantee that a rules crate with no Rust references is linked into
+the final application. When rules are selected only by ID, add the anonymous
+import below. If the application already has another actual Rust reference to
+the rules crate, the extra import is unnecessary. Optional rules also require
+their corresponding feature.
+
+```toml
+[dependencies]
+qubit-validation-rules = { version = "0.1", features = ["inventory"] }
+qubit-validator = "0.1"
+```
+
+```rust
+use qubit_validation_rules as _;
+use qubit_validator::BoundValidationContext;
+use qubit_validator::InputType;
+use qubit_validator::ValidationOutcome;
+use qubit_validator::ValidationValue;
+use qubit_validator::ValidatorRegistry;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ValidatorRegistry::try_global()?;
+    assert!(registry.get("qubit.rules.text.email_ascii").is_some());
+    let rule = registry.bind("qubit.rules.text.email_ascii", InputType::Text, &[])?;
+    let context = BoundValidationContext::new(&[]);
+    assert_eq!(
+        rule.validate(ValidationValue::Text("user@example.com"), &context)?,
+        ValidationOutcome::Valid,
+    );
+    assert!(matches!(
+        rule.validate(ValidationValue::Text("invalid"), &context)?,
+        ValidationOutcome::Invalid(_),
+    ));
+    Ok(())
+}
+```
+
+If a built-in ID is missing from the global registry, confirm that the `inventory`
+feature is enabled and the rules crate is linked. Also enable the feature for any
+optional rule family being used.
+
 ### Decimal integration example
 
 A payment endpoint can accept decimal text from a caller, then enforce the
@@ -362,7 +406,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   date adjustment occurs.
 - `RegexMatch::new` and the `ids::TEXT_REGEX` registration accept a pattern body
   of at most 4,096 UTF-8 bytes. The approximate compiled-program size limit is 8 MiB and
-  the lazy DFA cache to 2 MiB per rule. The rule does not impose a matching
+  the lazy DFA cache to 2 MiB per rule. Body AST nesting depth is limited to
+  250; deeper bodies return `InvalidPattern`. The internal full-match wrapper
+  has a separate allowance and does not consume that body budget. AST depth is
+  not a count of pattern parentheses. The rule does not impose a matching
   input length limit; applications must enforce one at their input boundary.
 - The `qubit.rules.text.email_ascii` registration ID remains stable. In model
   declarations, replace `format = email` with `format = email_ascii` and
@@ -530,6 +577,7 @@ programmatic handling rather than parsing display strings.
 | Symptom | Check |
 | --- | --- |
 | Registry binding returns an error | Confirm the ID, `InputType`, argument names and types, and that the required feature is enabled. |
+| A built-in ID is missing from the global registry | Confirm the `inventory` feature, ensure `qubit-validation-rules` is linked with `use qubit_validation_rules as _;` when no other Rust reference exists, and enable any optional rule feature. |
 | Text rejected by `CharLength` | Check scalar-value count; a visible character may contain multiple scalars. |
 | Text rejected by `ByteLength` | Check UTF-8 byte count; non-ASCII text commonly uses multiple bytes per scalar. |
 | URI accepted but unsuitable for a callback | Apply application-level scheme, host, and destination policy after syntax validation. |
