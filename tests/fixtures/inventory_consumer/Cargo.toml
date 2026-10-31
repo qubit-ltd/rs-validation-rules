@@ -7,5 +7,5 @@ publish = false
 [workspace]
 
 [dependencies]
-qubit-validator = { path = "../../../../rs-validator", features = ["inventory"] }
+qubit-validator = { version = "0.1.0", features = ["inventory"] }
 qubit-validation-rules = { path = "../../..", features = ["inventory"] }

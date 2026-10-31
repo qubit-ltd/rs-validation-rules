@@ -28,4 +28,4 @@ unicode-general-category = "^1.1"
 chrono = { version = "^0.4", default-features = false, features = ["std"], optional = true }
 bigdecimal = { version = "^0.4", optional = true }
 regex = { version = "^1.13", optional = true }
-qubit-validator = { version = "0.1.0", default-features = false }
+qubit-validator = { version = "^0.1", default-features = false }
