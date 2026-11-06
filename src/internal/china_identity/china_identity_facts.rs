@@ -30,6 +30,9 @@ pub struct ChinaIdentityFacts {
 
 impl ChinaIdentityFacts {
     /// Creates facts from a date validated by the identity parser.
+    ///
+    /// # Parameters
+    /// - `birth_date`: Calendar date extracted from the identity number.
     #[must_use]
     #[inline]
     pub(super) const fn from_birth_date(birth_date: NaiveDate) -> Self {

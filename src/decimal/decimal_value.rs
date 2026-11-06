@@ -215,6 +215,13 @@ pub struct DecimalValue {
 
 impl std::fmt::Debug for DecimalValue {
     /// Reports public numeric limits without formatting boundary values.
+    ///
+    /// # Parameters
+    /// - `self`: Decimal rule whose public limits are formatted.
+    /// - `formatter`: Destination formatter for the debug representation.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` when formatting succeeds, or the formatter's error.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DecimalValue")
@@ -333,6 +340,7 @@ fn borrow_bound<T>(bound: &Bound<T>) -> Bound<&T> {
 }
 
 impl Validator<BigDecimal, ()> for DecimalValue {
+    /// Error describing which configured decimal constraint rejected a value.
     type Error = DecimalValueError;
 
     /// Validates a borrowed decimal against the configured scale, precision,

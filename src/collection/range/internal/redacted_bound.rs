@@ -14,6 +14,10 @@ use std::fmt::Result;
 use std::ops::Bound;
 
 /// Formats a bound variant without exposing its endpoint value.
+///
+/// # Type Parameters
+///
+/// * `T` is the endpoint type. Its value is never formatted.
 pub(in crate::collection::range) struct RedactedBound<'a, T>(
     /// Endpoint bound whose value is deliberately hidden by the formatter.
     pub(in crate::collection::range) &'a Bound<T>,
@@ -21,6 +25,14 @@ pub(in crate::collection::range) struct RedactedBound<'a, T>(
 
 impl<T> Debug for RedactedBound<'_, T> {
     /// Writes the bound variant and a fixed redaction marker.
+    ///
+    /// # Parameters
+    ///
+    /// * `formatter` receives the bound variant name and redaction marker.
+    ///
+    /// # Returns
+    ///
+    /// Returns the formatter's result, including any formatting error.
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result {
         match self.0 {
             Bound::Unbounded => formatter.write_str("Unbounded"),

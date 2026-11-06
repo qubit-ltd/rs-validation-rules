@@ -56,6 +56,9 @@ pub struct Range<T> {
 impl<T> fmt::Debug for Range<T> {
     /// Formats endpoint kinds without requiring endpoint values to implement
     /// `Debug`.
+    ///
+    /// # Parameters
+    /// - `formatter`: Formatter receiving the range's debug representation.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Range")

@@ -86,6 +86,7 @@ impl TimePrecision {
 }
 
 impl Validator<NaiveTime, ()> for TimePrecision {
+    /// Error returned when the time has finer precision than configured.
     type Error = TimePrecisionError;
 
     /// Validates a time's fractional-second precision using its nanosecond
@@ -114,6 +115,7 @@ impl Validator<NaiveTime, ()> for TimePrecision {
 }
 
 impl Validator<NaiveDateTime, ()> for TimePrecision {
+    /// Error returned when the date-time has finer precision than configured.
     type Error = TimePrecisionError;
 
     /// Validates a date-time's fractional-second precision using its nanosecond
@@ -142,6 +144,8 @@ impl Validator<NaiveDateTime, ()> for TimePrecision {
 }
 
 impl Validator<DateTime<Utc>, ()> for TimePrecision {
+    /// Error returned when the UTC date-time has finer precision than
+    /// configured.
     type Error = TimePrecisionError;
 
     /// Validates a UTC date-time's fractional-second precision using its

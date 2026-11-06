@@ -29,6 +29,12 @@ const FULL_MATCH_NESTING_OVERHEAD: u32 = 2;
 
 /// Compiles a pattern under the supplied per-rule engine limits.
 ///
+/// # Parameters
+/// - `pattern`: Regex syntax to compile without adding match anchors.
+/// - `program_limit`: Maximum approximate compiled program size in bytes.
+/// - `dfa_limit`: Maximum approximate lazy DFA cache capacity in bytes.
+/// - `nest_limit`: Maximum regex AST nesting depth accepted by the engine.
+///
 /// Returns a parameter range error when the compiled program exceeds its
 /// limit, or an invalid-pattern error when the syntax is rejected. The error
 /// never retains the supplied pattern.
@@ -47,6 +53,11 @@ fn compile_pattern(pattern: &str, program_limit: usize, dfa_limit: usize, nest_l
 }
 
 /// Compiles a full-string pattern under the supplied per-rule engine limits.
+///
+/// # Parameters
+/// - `pattern`: Unanchored regex body to match against the entire input.
+/// - `program_limit`: Maximum approximate compiled program size in bytes.
+/// - `dfa_limit`: Maximum approximate lazy DFA cache capacity in bytes.
 ///
 /// Validates the body before adding full-string anchors with a separate nesting
 /// allowance for the concatenation and non-capturing wrapper.
