@@ -13,17 +13,14 @@ use qubit_validator::ValidationOutcome;
 use qubit_validator::ValidationValue;
 use qubit_validator::ValidatorRegistry;
 
-/// Exercises inventory registration and context-aware validation through the consumer API.
+/// Exercises inventory registration and context-aware validation through the
+/// consumer API.
 fn main() {
     let registry = ValidatorRegistry::try_global().expect("inventory registry");
     assert!(registry.get("qubit.rules.text.email_ascii").is_some());
     assert!(registry.get("qubit.rules.collection.item_count").is_some());
     let bound = registry
-        .bind(
-            "qubit.rules.text.matches_dependency",
-            InputType::Text,
-            &[],
-        )
+        .bind("qubit.rules.text.matches_dependency", InputType::Text, &[])
         .expect("context-aware rule is inventory registered");
     let values = [ValidationValue::Text("expected-value")];
     let context = BoundValidationContext::new(&values);
