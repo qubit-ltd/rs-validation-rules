@@ -19,6 +19,10 @@ use super::time_precision_error::TimePrecisionError;
 /// Validates that a time value matches its declared temporal resolution.
 ///
 /// Values are checked exactly: validation does not round or alter the input.
+/// Chrono leap-second representations are accepted when their fractional
+/// nanosecond component matches the configured resolution. This rule checks
+/// precision only; it does not verify whether a leap second occurred on that
+/// date.
 ///
 /// # Examples
 ///

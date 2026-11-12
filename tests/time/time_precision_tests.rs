@@ -202,3 +202,82 @@ fn test_time_precision_on_all_chrono_inputs_and_registration() {
     assert_eq!(error.kind(), BindErrorKind::ParameterOutOfRange);
     assert_eq!(error.parameter(), Some("precision"));
 }
+
+#[cfg(feature = "time")]
+#[test]
+fn test_time_precision_leap_second_matrix() {
+    use chrono::DateTime;
+    use chrono::NaiveDate;
+    use chrono::NaiveTime;
+    use chrono::Utc;
+    use qubit_validation_rules::ids;
+    use qubit_validation_rules::time::TemporalResolution;
+    use qubit_validation_rules::time::TimePrecision;
+    use qubit_validation_rules::time::TimePrecisionError;
+
+    let rows = [
+        (1_000_000_000, [true, true, true, true]),
+        (1_001_000_000, [false, true, true, true]),
+        (1_001_001_000, [false, false, true, true]),
+        (1_001_001_001, [false, false, false, true]),
+    ];
+    let resolutions = [
+        (TemporalResolution::Second, "second"),
+        (TemporalResolution::Millisecond, "millisecond"),
+        (TemporalResolution::Microsecond, "microsecond"),
+        (TemporalResolution::Nanosecond, "nanosecond"),
+    ];
+    let date = NaiveDate::from_ymd_opt(2016, 12, 31).unwrap();
+    let registry = create_test_registry();
+
+    for (nanos, expected) in rows {
+        // Construct directly: timestamp conversion can discard chrono's leap-second
+        // form.
+        let time = NaiveTime::from_hms_nano_opt(23, 59, 59, nanos).unwrap();
+        let naive = date.and_time(time);
+        let utc: DateTime<Utc> = naive.and_utc();
+        let values = [
+            (InputType::of::<NaiveTime>(), ValidationValue::Typed(&time)),
+            (InputType::of::<chrono::NaiveDateTime>(), ValidationValue::Typed(&naive)),
+            (InputType::of::<DateTime<Utc>>(), ValidationValue::Typed(&utc)),
+        ];
+
+        for ((resolution, token), accepted) in resolutions.into_iter().zip(expected) {
+            let rule = TimePrecision::new(resolution);
+            for result in [
+                rule.validate(&time, &()),
+                rule.validate(&naive, &()),
+                rule.validate(&utc, &()),
+            ] {
+                assert_eq!(
+                    result,
+                    if accepted {
+                        Ok(())
+                    } else {
+                        Err(TimePrecisionError::Precision)
+                    }
+                );
+            }
+
+            for (input_type, value) in values {
+                if accepted {
+                    let args = [NamedValidationArgument::new(
+                        "precision",
+                        ValidationArgument::String(token),
+                    )];
+                    let bound = registry
+                        .bind(ids::TIME_PRECISION, input_type, &args)
+                        .expect("leap-second precision binds");
+                    assert_eq!(
+                        bound
+                            .validate(value, &BoundValidationContext::new(&[]))
+                            .expect("leap-second validation succeeds"),
+                        qubit_validator::ValidationOutcome::Valid
+                    );
+                } else {
+                    assert_precision_violation(input_type, value, token);
+                }
+            }
+        }
+    }
+}
