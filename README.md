@@ -82,7 +82,7 @@ application must still decide which URI schemes and destinations it permits.
 | `collection::ItemCount` | At least one inclusive item-count bound expressed as `usize` is required; the largest accepted bound depends on the target architecture. |
 | `collection::Range<T>` | Checks ordered inclusive or exclusive endpoints for comparable values; unordered values such as `NaN` are rejected. Ordered endpoints do not guarantee that a discrete type has a value inside, for example the open integer interval `(1, 2)`. Its `Debug` output redacts endpoint values. |
 | `collection::UniqueItems` | Finds the first duplicate pair with `first_duplicate_with_limit(values, max_comparisons)`; `collection::UniquePairs` exposes the shared `(first, second)` search order without comparing values. The limit caps actual `PartialEq` calls. Model execution has its own comparison budget and reserves `ids::COLLECTION_UNIQUE` for its intrinsic uniqueness rule. |
-| `decimal::DecimalValue` | With `decimal`, checks normalized `BigDecimal` scale, optional `DECIMAL(p,s)` capacity and exact bounds. Its grid step is `10^(-s)` and its domain is `[-(10^p-1)×10^(-s), (10^p-1)×10^(-s)]`; for example, `(1.23,1.24]` is nonempty at scale 2 while `(1.23,1.24)` is empty. Each original finite endpoint is independently checked using `coefficient_digits + abs(s-endpoint_scale) + 1`; a cost above 131,072 returns `ParameterOutOfRange(min/max)` before endpoint comparison, clipping or feasibility checks, including for one-sided bounds. This estimate does not include allocations before literal parsing or limit validation input size. Dynamic registration also rejects `min`/`max` literals longer than 131,072 UTF-8 bytes before parsing; this string limit does not apply to typed `DecimalValue::new`. The rule never rounds input. |
+| `decimal::DecimalValue` | With `decimal`, checks normalized scale, optional `DECIMAL(p,s)` capacity, and exact bounds without rounding. Construction and bound literals have resource limits; applications must bound runtime input size. See the [decimal contract](doc/user_guide.md#other-rule-profiles). |
 | `time::TimePrecision` | With `time`, checks exact second, millisecond, microsecond, or nanosecond resolution for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`, without rounding. |
 | `identity::ChinaIdentity18Structure` | With `china-identity`, length, body digits, calendar birth date, and checksum of an 18-character mainland China identity number. It does not establish a valid or assigned region code, issuance, or the holder's identity. |
 
@@ -100,17 +100,9 @@ and invalid syntax as `InvalidPattern`. Pattern body AST nesting depth is
 limited to 250; deeper patterns return `InvalidPattern`. Applications must
 bound matching input length at their input boundary.
 
-When `qubit-model-metadata` executes declarations, generated borrowed adapters
-support applicable selectors over borrowed `Vec<T>` and array elements, and
-`HashMap<K, V>` / `BTreeMap<K, V>` keys and values. Outer Map entry counts reuse
-`ItemCount`; outer sequence `unique_items` uses an element equality adapter
-rather than a generic registry rule. Support depends on a matching adapter and
-input type. Selector rules cannot bind dependencies; owned collection getters,
-unknown container shapes, implicit member unwrapping, and enum-payload selectors
-are unsupported. The model plan checks capabilities at build time. Its
-`max_nodes` budget covers reads and rule calls, while `max_comparisons` bounds
-sequence pair checks. See the metadata [execution support
-matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md).
+For `qubit-model-metadata`, rules connect through registrations, model execution
+has its own budgets, and sequence uniqueness is a model built-in. See the
+metadata [execution support matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md).
 
 ## Registration and Features
 

@@ -403,7 +403,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `TimePrecision::new` supports `Second`, `Millisecond`, `Microsecond`, and
   `Nanosecond` for `DateTime<Utc>`, `NaiveDateTime`, and `NaiveTime`. The
   nanosecond component must divide evenly by the selected unit; no rounding or
-  date adjustment occurs.
+  date adjustment occurs. Chrono leap-second representations are accepted
+  according to fractional precision; the rule does not verify real-world leap
+  second dates. For example, `23:59:59` with `1_001_000_000` nanoseconds fails
+  `Second` precision and passes `Millisecond` precision.
 - `RegexMatch::new` and the `ids::TEXT_REGEX` registration accept a pattern body
   of at most 4,096 UTF-8 bytes. The approximate compiled-program size limit is 8 MiB.
   The lazy DFA transition cache is configured with an approximate capacity of 2 MiB.
@@ -521,28 +524,13 @@ Here, unequal text produces `text.dependency_mismatch`. Omitting `expected` is a
 
 ### Model metadata execution boundary
 
-`qubit-model-metadata` binds the registered `ItemCount` rule to an outer
-`HashMap` or `BTreeMap` entry count through a generated `map_len` adapter.
-Outer `#[sequence(unique_items)]` instead uses an element `PartialEq` adapter
-for a supported `Vec<T>` or array with a borrowed-slice getter; it is not a
-general-purpose dynamic registration. Missing adapters and incompatible types
-fail plan construction. A duplicate produces one violation at the later element
-index and includes `first_index`. Its stable ID is `ids::COLLECTION_UNIQUE`,
-which cannot be claimed by a custom registration; Map count violations use the
-field path.
-
-The model plan's `max_nodes` budget counts actual reads and rule invocations.
-`max_comparisons` counts each uniqueness pair comparison and selector element
-rule call; element reads also cost nodes. The limits are checked before work,
-and exhaustion returns `TraversalLimit` with a partial report. Uniqueness can
-require O(n²) comparisons. These budgets belong to model execution, not direct
-typed-rule calls. Generated borrowed adapters also execute applicable selector
-rules for borrowed `Vec<T>` and array elements and for `HashMap<K, V>` /
-`BTreeMap<K, V>` keys and values. Selector rules cannot bind dependencies;
-unknown/custom containers, owned collection getters, implicit member unwrapping,
-and enum-payload selectors remain unsupported. Consult the metadata
+`qubit-model-metadata` connects registered rules through generated adapters.
+Outer Map counts use `ItemCount`; sequence uniqueness uses the model's built-in
+`ids::COLLECTION_UNIQUE` rule and `UniquePairs` index order, not a general
+dynamic registration. Model execution applies its own node and comparison
+budgets, separate from direct typed-rule calls. Consult the metadata
 [execution support matrix](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.md)
-before building a plan.
+for supported selectors, adapters, and budget details.
 
 ## Errors and Diagnostics
 

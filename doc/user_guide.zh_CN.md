@@ -357,7 +357,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   的区间。诊断顺序为标量关系、`min` 成本、`max` 成本、端点顺序、数学可行性。错误不会保留端点值。
 - `TimePrecision::new` 对 `DateTime<Utc>`、`NaiveDateTime` 和 `NaiveTime` 支持
   `Second`、`Millisecond`、`Microsecond`、`Nanosecond`。纳秒部分必须能被所选单位整除；
-  不舍入，也不调整日期。
+  不舍入，也不调整日期。chrono 的闰秒表示也按其纳秒小数部分判断；本规则不核验真实闰秒日期。
+  例如，`23:59:59` 配合 `1_001_000_000` 纳秒时，秒精度拒绝，毫秒精度接受。
 - `RegexMatch::new` 和 `ids::TEXT_REGEX` 注册项接受的模式正文最多为 4,096 个 UTF-8
   字节。编译程序的近似大小上限为 8 MiB。惰性 DFA 转移缓存的近似容量配置为 2 MiB。这不是
   单条规则或整个进程的总内存上限：并发搜索可能使用多份缓存，正则引擎还会有其他内存分配。规则
@@ -464,20 +465,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### 模型元数据的执行边界
 
-`qubit-model-metadata` 通过生成的 `map_len` 适配器，把外层 `HashMap` 或 `BTreeMap`
-的 entry 数量交给已注册的 `ItemCount` 规则。外层 `#[sequence(unique_items)]` 则对受支持的
-`Vec<T>` 或数组使用借用切片 getter 和元素 `PartialEq` 适配器，不提供通用动态注册项。
-缺少适配器或具体类型不符会使计划构建失败。重复元素在较后的索引处产生一条违规，参数中包含
-`first_index`。该内建规则使用稳定 ID `ids::COLLECTION_UNIQUE`，自定义注册不能占用它；
-Map 数量违规使用字段路径。
-
-模型执行的 `max_nodes` 预算统计实际读取和规则调用；模型级 `max_comparisons` 统计每次去重成对比较
-及 selector 元素规则调用，读取元素也消耗节点。每项工作开始前检查预算；超限返回
-`TraversalLimit` 和部分报告。去重最坏需要 O(n²) 次比较。这些预算属于模型执行，
-不作用于直接调用的类型化规则。生成的借用适配器也能对借用的 `Vec<T>` 和数组元素，
-以及 `HashMap<K, V>` / `BTreeMap<K, V>` 的 key、value 执行适用的 selector 规则。
-selector 规则不能绑定依赖；未知或自定义容器、owned 集合 getter、需要隐式解包的成员以及枚举
-payload selector 仍不支持。构建计划前请查阅 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
+`qubit-model-metadata` 通过生成的适配器接入已注册规则。外层 Map 数量使用 `ItemCount`；
+序列唯一性使用模型内建的 `ids::COLLECTION_UNIQUE` 规则和 `UniquePairs` 索引顺序，不是通用动态注册项。
+模型执行有独立的节点与比较预算，与直接调用类型化规则分开。selector、适配器和预算的详细支持范围，
+请查阅 metadata 的[执行矩阵](https://github.com/qubit-ltd/rs-model-metadata/blob/main/doc/user_guide.zh_CN.md)。
 
 ## 错误与诊断
 
