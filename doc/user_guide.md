@@ -546,6 +546,9 @@ input value. Decimal and time rules report `decimal.scale`,
 `decimal.precision`, `decimal.range`, or `time.precision` without the input value.
 Decimal binding requires `scale`, accepts optional `precision`, canonical string
 `min`/`max`, and optional `min_inclusive`/`max_inclusive` (both default true).
+Typed `DecimalValue::new` construction and dynamic binding report parameter
+`precision` for zero precision and parameter `scale` when scale exceeds
+precision. Zero precision takes precedence.
 Time binding requires `precision = second|millisecond|microsecond|nanosecond`.
 A `time.precision` violation includes a `precision` parameter whose static
 token is the configured value (`second`, `millisecond`, `microsecond`, or

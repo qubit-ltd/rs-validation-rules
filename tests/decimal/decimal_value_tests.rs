@@ -93,6 +93,45 @@ fn create_test_registry() -> ValidatorRegistry {
 }
 
 #[test]
+fn test_decimal_scalar_parameter_diagnostics_match_registry() {
+    let registry = ValidatorRegistry::from_registrations(registrations()).unwrap();
+    for (precision, scale, expected) in [
+        (Some(0_u16), 0_u16, Some("precision")),
+        (Some(0), 1, Some("precision")),
+        (Some(2), 3, Some("scale")),
+        (Some(2), 2, None),
+        (None, 3, None),
+    ] {
+        let typed = DecimalValue::new(precision, scale, None, None);
+        let mut args = vec![NamedValidationArgument::new(
+            "scale",
+            ValidationArgument::Unsigned(u128::from(scale)),
+        )];
+        if let Some(precision) = precision {
+            args.push(NamedValidationArgument::new(
+                "precision",
+                ValidationArgument::Unsigned(u128::from(precision)),
+            ));
+        }
+        let bound = registry.bind(ids::DECIMAL_VALUE, InputType::of::<BigDecimal>(), &args);
+        if let Some(parameter) = expected {
+            let typed_error = typed.unwrap_err();
+            let bound_error = match bound {
+                Err(error) => error,
+                Ok(_) => panic!("invalid scalar configuration must fail"),
+            };
+            assert_eq!(typed_error.kind(), BindErrorKind::ParameterOutOfRange);
+            assert_eq!(typed_error.parameter(), Some(parameter));
+            assert_eq!(bound_error.kind(), BindErrorKind::ParameterOutOfRange);
+            assert_eq!(bound_error.parameter(), Some(parameter));
+        } else {
+            assert!(typed.is_ok());
+            assert!(bound.is_ok());
+        }
+    }
+}
+
+#[test]
 fn test_decimal_empty_domain_is_rejected_at_construction() {
     let decimal = |value| BigDecimal::from_str(value).unwrap();
     let invalid = [

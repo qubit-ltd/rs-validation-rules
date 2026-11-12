@@ -482,7 +482,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 确实不相等时产生 `text.dependency_mismatch`，缺失依赖属于执行错误。错误文本均不展示输入值。
 Decimal 与 Time 的违规码分别是 `decimal.scale`、`decimal.precision`、`decimal.range`、
 `time.precision`。Decimal 绑定要求 `scale`，可选 `precision`、规范十进制字符串 `min`/`max`
-及 `min_inclusive`/`max_inclusive`（默认均为 true）。Time 绑定要求
+及 `min_inclusive`/`max_inclusive`（默认均为 true）。直接调用 `DecimalValue::new` 或通过
+注册表绑定时，`precision` 为零会在错误中标记 `precision`；`scale` 大于 `precision` 会标记
+`scale`。两种关系同时不满足时，优先报告 `precision`。Time 绑定要求
 `precision = second|millisecond|microsecond|nanosecond`。发生 `time.precision` 违规时，报告
 包含 `precision` 参数，其静态 token 是配置值 `second`、`millisecond`、`microsecond` 或
 `nanosecond`。未知或越界参数会在绑定阶段失败。

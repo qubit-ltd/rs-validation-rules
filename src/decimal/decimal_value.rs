@@ -256,12 +256,14 @@ impl DecimalValue {
     ///
     /// # Errors
     /// Rejects zero precision, scale greater than precision, invalid bounds,
-    /// and intervals containing no value on the declared scale grid. After
-    /// scalar checks, each raw finite endpoint is independently checked before
-    /// bound ordering or precision-domain clipping. The feasibility estimate
-    /// rejects endpoint calculations above 131,072 decimal digits; it is not a
-    /// general input or runtime resource limit. Errors do not retain endpoint
-    /// values.
+    /// and intervals containing no value on the declared scale grid.
+    /// Zero precision reports parameter `precision`. Scale greater than
+    /// `precision` reports parameter `scale`. Zero precision is reported first
+    /// when both relationships fail. After scalar checks, each raw finite
+    /// endpoint is independently checked before bound ordering or
+    /// precision-domain clipping. The feasibility estimate rejects endpoint
+    /// calculations above 131,072 decimal digits; it is not a general input or
+    /// runtime resource limit. Errors do not retain endpoint values.
     ///
     /// # Examples
     ///
@@ -294,8 +296,11 @@ impl DecimalValue {
         min: Option<Bound<BigDecimal>>,
         max: Option<Bound<BigDecimal>>,
     ) -> Result<Self, BindError> {
-        if precision.is_some_and(|p| p == 0 || scale > p) {
-            return Err(BindError::new(BindErrorKind::ParameterOutOfRange));
+        if precision == Some(0) {
+            return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter("precision"));
+        }
+        if precision.is_some_and(|value| scale > value) {
+            return Err(BindError::new(BindErrorKind::ParameterOutOfRange).with_parameter("scale"));
         }
         for (bound, parameter) in [(&min, "min"), (&max, "max")] {
             if let Some(Bound::Included(value) | Bound::Excluded(value)) = bound {
